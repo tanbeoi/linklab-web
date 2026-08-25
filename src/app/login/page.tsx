@@ -5,12 +5,11 @@ import { SubmitEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ApiError, AuthResponse, } from "@/types/auth";
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,7 +25,7 @@ export default function RegisterPage() {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
         {
           method: "POST",
           headers: {
@@ -35,33 +34,28 @@ export default function RegisterPage() {
           body: JSON.stringify({
             email,
             password,
-            displayName,
           }),
         },
       );
 
-      // | means data can either be AuthResponse on success or ApiError on failure
       const data : AuthResponse | ApiError = await response.json();
 
       // throw stops the remaining code from executing and jumps to the catch block 
-      // here we account for both cases, first is if data is an ApiError
       if (!response.ok) {
         const message = "error" in data ? data.error : undefined;
-
-      throw new Error(message ?? "Registration failed.");
+        throw new Error(message ?? "Login failed.");
       }
 
-      // then if data is an AuthResponse 
       if (!("token" in data)) {
         throw new Error("Invalid authentication response")
       }
       
       // saves the login token and move the user to the homepage
       localStorage.setItem("linklab_token", data.token);
-      router.push("/login");
+      router.push("/");
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "Registration failed.",
+        error instanceof Error ? error.message : "Login failed.",
       );
     } finally {
       setIsSubmitting(false);
@@ -78,25 +72,9 @@ export default function RegisterPage() {
         <div>
           <p className="text-sm font-medium text-emerald-700">LinkLab</p>
           <h1 className="mt-1 text-2xl font-semibold text-zinc-900">
-            Create account
+            Login to your account
           </h1>
         </div>
-
-        <label
-          htmlFor="displayName"
-          className="block text-sm font-medium text-zinc-700"
-        >
-          Display name
-          <input
-            id="displayName"
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            autoComplete="name"
-            required
-            className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-          />
-        </label>
 
         <label
           htmlFor="email"
@@ -124,7 +102,7 @@ export default function RegisterPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
+            autoComplete="current-password"
             required
             className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
           />
@@ -144,7 +122,7 @@ export default function RegisterPage() {
           disabled={isSubmitting}
           className="w-full rounded-md bg-zinc-900 px-4 py-2.5 font-medium text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-zinc-400"
         >
-          {isSubmitting ? "Registering..." : "Create account"}
+          {isSubmitting ? "Logging in..." : "Log in"}
         </button>
       </form>
     </main>
