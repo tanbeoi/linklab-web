@@ -3,7 +3,8 @@
 
 import { SubmitEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ApiError, AuthResponse, } from "@/types/auth";
+import type {AuthResponse} from "@/types/auth";
+import {apiRequest} from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,33 +25,20 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
+      const data = await apiRequest<AuthResponse>(
+        "api/auth/login", 
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        },
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                email,
+                password,
+            }),
+        }
       );
-
-      const data : AuthResponse | ApiError = await response.json();
-
-      // throw stops the remaining code from executing and jumps to the catch block 
-      if (!response.ok) {
-        const message = "error" in data ? data.error : undefined;
-        throw new Error(message ?? "Login failed.");
-      }
-
-      if (!("token" in data)) {
-        throw new Error("Invalid authentication response")
-      }
       
-      // saves the login token and move the user to the homepage
       localStorage.setItem("linklab_token", data.token);
       router.push("/");
     } catch (error) {

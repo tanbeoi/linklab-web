@@ -3,7 +3,8 @@
 
 import { SubmitEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ApiError, AuthResponse, } from "@/types/auth";
+import type { AuthResponse } from "@/types/auth";
+import {apiRequest} from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -25,8 +26,8 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
+      const data = await apiRequest<AuthResponse>(
+        "api/auth/register", 
         {
           method: "POST",
           headers: {
@@ -37,28 +38,11 @@ export default function RegisterPage() {
             password,
             displayName,
           }),
-        },
+        }
       );
 
-      // | means data can either be AuthResponse on success or ApiError on failure
-      const data : AuthResponse | ApiError = await response.json();
-
-      // throw stops the remaining code from executing and jumps to the catch block 
-      // here we account for both cases, first is if data is an ApiError
-      if (!response.ok) {
-        const message = "error" in data ? data.error : undefined;
-
-      throw new Error(message ?? "Registration failed.");
-      }
-
-      // then if data is an AuthResponse 
-      if (!("token" in data)) {
-        throw new Error("Invalid authentication response")
-      }
-      
-      // saves the login token and move the user to the homepage
       localStorage.setItem("linklab_token", data.token);
-      router.push("/login");
+      router.push("/");
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Registration failed.",
