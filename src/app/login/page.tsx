@@ -26,7 +26,7 @@ export default function LoginPage() {
 
     try {
       const data = await apiRequest<AuthResponse>(
-        "api/auth/login", 
+        "/api/auth/login",
         {
             method: "POST",
             headers: {
