@@ -22,8 +22,16 @@ export function AuthGuard({children}: AuthGuardProps)
         async function checkAuthentication() {
             const token = localStorage.getItem("linklab_token");
 
+            function redirectToLogin() {
+                // get the current path and query parameters 
+                const returnTo = window.location.pathname + window.location.search;
+
+                // encodeURIComponent makes the URL safe to put in another URL
+                router.replace(`/login?next=${encodeURIComponent(returnTo)}`);
+            }
+
             if (!token){
-                router.replace("/login");
+                redirectToLogin();
             }
 
             try 
@@ -39,7 +47,7 @@ export function AuthGuard({children}: AuthGuardProps)
             catch 
             {
                 localStorage.removeItem("linklab_token");
-                router.replace("/login");
+                redirectToLogin();
             }
         }
 

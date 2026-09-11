@@ -40,7 +40,19 @@ export default function LoginPage() {
       );
       
       localStorage.setItem("linklab_token", data.token);
-      router.push("/");
+
+      // read "next" after successful login 
+      const searchParams = new URLSearchParams(window.location.search);
+      const next = searchParams.get("next");
+
+      // validate the destination 
+      const destination = next?.startsWith("/") && !next.startsWith("//") 
+                          ? next 
+                          : "/";
+
+      // redirect
+      router.replace(destination);
+
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Login failed.",
