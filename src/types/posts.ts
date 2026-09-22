@@ -26,3 +26,17 @@ export type CreateCollabPostRequest = {
     isRemote: boolean;
 }
 
+export type ApplyToPostRequest = {
+    message: string;
+};
+
+export type ApplyToPostResponse = {
+    id: string;
+    postId: string;
+    applicantUserId: string;
+    message: string;
+    status: string;
+    createdAtUtc: string;
+    decidedAtUtc?: string;
+};
+
