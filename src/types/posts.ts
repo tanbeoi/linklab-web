@@ -7,6 +7,8 @@ export type CollabPost = {
     createdAtUtc: string;
     userId: string;
     ownerDisplayName: string;
+    moodboardPreviewImageUrls: string[];
+    moodboardPhotoCount: number;
 };
 
 export type PagedResponse<T> = {

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { CollabPost, PagedResponse } from "@/types/posts";
 import { ApplicationForm } from "@/components/application-form";
+import Image from "next/image";
 import Link from "next/link";
 
 function truncateWords(text: string, limit = 100) {
@@ -126,53 +127,104 @@ export default function ListPostsPage() {
                     ) : (
                         <>
                             <section className="space-y-4" aria-label="Collaboration posts">
-                                {postsResponse.items.map((post) => (
-                                <article
-                                    key={post.id}
-                                    className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-                                >    
-                                    {/* Grid-cols-3 creates 3 equal columns, and col-span-2 makes the content section occupies 2 of those           */}
-                                    <div className="grid gap-6 sm:grid-cols-3 sm:items-center">
-                                        <div className="min-w-0 sm:col-span-2">
-                                            <h2 className="break-words text-xl font-semibold text-slate-900">
-                                                {post.title}
-                                            </h2>
+                                {postsResponse.items.map((post) => {
+                                    const previewImages =
+                                        post.moodboardPreviewImageUrls;
 
-                                            <p className="mt-3 break-words leading-7 text-slate-600">
-                                                {truncateWords(post.description, 60)}
-                                            </p>
+                                    const remainingImageCount = Math.max(
+                                        post.moodboardPhotoCount - previewImages.length,
+                                        0,
+                                    );
 
-                                            <div className="mt-4 space-y-1 text-sm text-slate-500 sm:flex sm:items-center sm:gap-4 sm:space-y-0">
-                                                <p>
-                                                    {post.isRemote ? "Remote" : post.location}
-                                                </p>
+                                    return (
+                                        <article
+                                            key={post.id}
+                                            className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                                        >    
+                                            {/* Grid-cols-3 creates 3 equal columns, and col-span-2 makes the content section occupies 2 of those           */}
+                                            <div className="grid gap-6 sm:grid-cols-3 sm:items-center">
+                                                <div className="min-w-0 sm:col-span-2">
+                                                    <h2 className="break-words text-xl font-semibold text-slate-900">
+                                                        {post.title}
+                                                    </h2>
 
-                                                <p>Posted by {post.ownerDisplayName}</p>
+                                                    <p className="mt-3 break-words leading-7 text-slate-600">
+                                                        {truncateWords(post.description, 50)}
+                                                    </p>
 
-                                                <p>
-                                                    {new Date(
-                                                        post.createdAtUtc,
-                                                    ).toLocaleDateString()}
-                                                </p>
+                                                    {previewImages.length > 0 && (
+                                                        <div
+                                                            className={`mt-4 grid gap-2 ${
+                                                                previewImages.length === 1
+                                                                    ? "grid-cols-1"
+                                                                    : previewImages.length === 2
+                                                                    ? "grid-cols-2"
+                                                                    : "grid-cols-3"
+                                                            }`}
+                                                        >
+                                                            {previewImages.map((imageUrl, index) => {
+                                                                const showRemainingCount =
+                                                                    index === 2 &&
+                                                                    remainingImageCount > 0;
+
+                                                                return (
+                                                                    <div
+                                                                        key={imageUrl}
+                                                                        className="relative aspect-[4/3] min-w-0 overflow-hidden rounded-md bg-slate-100"
+                                                                    >
+                                                                        <Image
+                                                                            src={imageUrl}
+                                                                            alt={`Moodboard image ${index + 1} for ${post.title}`}
+                                                                            fill
+                                                                            sizes="(max-width: 640px) 33vw, 220px"
+                                                                            className="object-cover"
+                                                                        />
+
+                                                                        {showRemainingCount && (
+                                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                                                                                <span className="text-2xl font-semibold text-white">
+                                                                                    +{remainingImageCount}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="mt-4 space-y-1 text-sm text-slate-500 sm:flex sm:items-center sm:gap-4 sm:space-y-0">
+                                                        <p>
+                                                            {post.isRemote ? "Remote" : post.location}
+                                                        </p>
+
+                                                        <p>Posted by {post.ownerDisplayName}</p>
+
+                                                        <p>
+                                                            {new Date(
+                                                                post.createdAtUtc,
+                                                            ).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="sm:flex sm:justify-end">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(event) => {
+                                                            // stopPropagation stops the button from reacting when the user clicks on the posts page, which would otherwise immediately closes the opened panel
+                                                            event.stopPropagation();
+                                                            setSelectedPost(post);
+                                                        }}
+                                                        className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
+                                                    >
+                                                        Apply
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-
-                                        <div className="sm:flex sm:justify-end">
-                                            <button
-                                                type="button"
-                                                onClick={(event) => {
-                                                    // stopPropagation stops the button from reacting when the user clicks on the posts page, which would otherwise immediately closes the opened panel
-                                                    event.stopPropagation();
-                                                    setSelectedPost(post);
-                                                }}
-                                                className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
-                                            >
-                                                Apply
-                                            </button>
-                                        </div>
-                                    </div>
-                                </article>
-                                ))}
+                                        </article>
+                                    );
+                                })}
                             </section>
 
                             <nav className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between" aria-label="Posts pagination">
