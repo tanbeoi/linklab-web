@@ -32,6 +32,7 @@ export function AuthGuard({children}: AuthGuardProps)
 
             if (!token){
                 redirectToLogin();
+                return;
             }
 
             try 

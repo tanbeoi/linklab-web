@@ -1,7 +1,8 @@
 //  this component is a client component because it uses useState and useRouter, which are client-side hooks.
  "use client";
 
-import { SubmitEvent, useState } from "react";
+import { SubmitEvent, useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type {AuthResponse} from "@/types/auth";
 import {apiRequest} from "@/lib/api";
@@ -13,6 +14,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [registerHref, setRegisterHref] =
+    useState("/register");
+    
+  useEffect(() => {
+      setRegisterHref(`/register${window.location.search}`);
+  }, []);
 
   // create a function called submit 
   // tells typesscript that the event is a SubmitEvent of an HTMLFormElement
@@ -51,7 +59,7 @@ export default function LoginPage() {
                           : "/";
 
       // redirect
-      router.replace(destination);
+      window.location.href = destination;
 
     } catch (error) {
       setError(
@@ -124,6 +132,13 @@ export default function LoginPage() {
         >
           {isSubmitting ? "Logging in..." : "Log in"}
         </button>
+
+        <p className="text-center text-sm text-zinc-600">
+          Don&apos;t have an account?{" "}
+          <Link href={registerHref}>
+              Sign up
+          </Link>
+        </p>
       </form>
     </main>
   );

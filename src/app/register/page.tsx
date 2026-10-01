@@ -27,7 +27,7 @@ export default function RegisterPage() {
 
     try {
       const data = await apiRequest<AuthResponse>(
-        "api/auth/register", 
+        "/api/auth/register", 
         {
           method: "POST",
           headers: {
@@ -42,7 +42,19 @@ export default function RegisterPage() {
       );
 
       localStorage.setItem("linklab_token", data.token);
-      router.push("/");
+
+      // read "next" after successful login 
+      const searchParams = new URLSearchParams(window.location.search);
+      const next = searchParams.get("next");
+
+      // validate the destination 
+      const destination = next?.startsWith("/") && !next.startsWith("//") 
+                          ? next 
+                          : "/";
+
+      // redirect
+      window.location.href = destination;
+
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Registration failed.",
