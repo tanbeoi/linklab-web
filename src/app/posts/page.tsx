@@ -7,6 +7,7 @@ import { ApplicationForm } from "@/components/application-form";
 import { useAuth } from "@/contexts/auth-context";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 function truncateWords(text: string, limit = 100) {
     // Find all non-whitespace characters 
@@ -24,7 +25,12 @@ function truncateWords(text: string, limit = 100) {
 }
 
 export default function ListPostsPage() {
-    const { user } = useAuth();
+    const router = useRouter();
+    const {
+        user,
+        isAuthenticated,
+        isLoading: isAuthLoading,
+    } = useAuth();
     const [error, setError] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -214,20 +220,38 @@ export default function ListPostsPage() {
                                                 <div className="sm:flex sm:justify-end">
                                                     <button
                                                         type="button"
-                                                        disabled={isOwnPost}
+                                                        disabled={isOwnPost || isAuthLoading}
                                                         onClick={(event) => {
                                                             // stopPropagation stops the button from reacting when the user clicks on the posts page, which would otherwise immediately closes the opened panel
                                                             event.stopPropagation();
+
+                                                            if (!isAuthenticated) {
+                                                                const returnTo =
+                                                                    window.location.pathname +
+                                                                    window.location.search;
+
+                                                                router.push(
+                                                                    `/login?next=${encodeURIComponent(returnTo)}`,
+                                                                );
+                                                                return;
+                                                            }
+
                                                             setSelectedPost(post);
                                                         }}
                                                         title={
                                                             isOwnPost
                                                                 ? "You cannot apply to your own post."
+                                                                : isAuthLoading
+                                                                ? "Checking your session..."
                                                                 : undefined
                                                         }
                                                         className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 disabled:hover:bg-slate-300 sm:w-auto"
                                                     >
-                                                        {isOwnPost ? "Your post" : "Apply"}
+                                                        {isOwnPost
+                                                            ? "Your post"
+                                                            : isAuthLoading
+                                                            ? "Checking..."
+                                                            : "Apply"}
                                                     </button>
                                                 </div>
                                             </div>
