@@ -22,7 +22,7 @@ export async function apiRequest<T>(
     }
 
     // create a new Headers object 
-    // if options.headers is empty thaen is becomes an empty headers collection 
+    // if options.headers is empty then is becomes an empty headers collection 
     // if options.headers is not empty then it preserves the existing headers' values 
     const headers = new Headers(options.headers);
 
