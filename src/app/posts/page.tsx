@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { CollabPost, PagedResponse } from "@/types/posts";
 import { ApplicationForm } from "@/components/application-form";
+import { useAuth } from "@/contexts/auth-context";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -23,6 +24,7 @@ function truncateWords(text: string, limit = 100) {
 }
 
 export default function ListPostsPage() {
+    const { user } = useAuth();
     const [error, setError] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -128,6 +130,7 @@ export default function ListPostsPage() {
                         <>
                             <section className="space-y-4" aria-label="Collaboration posts">
                                 {postsResponse.items.map((post) => {
+                                    const isOwnPost = user?.id === post.userId;
                                     const previewImages =
                                         post.moodboardPreviewImageUrls;
 
@@ -211,14 +214,20 @@ export default function ListPostsPage() {
                                                 <div className="sm:flex sm:justify-end">
                                                     <button
                                                         type="button"
+                                                        disabled={isOwnPost}
                                                         onClick={(event) => {
                                                             // stopPropagation stops the button from reacting when the user clicks on the posts page, which would otherwise immediately closes the opened panel
                                                             event.stopPropagation();
                                                             setSelectedPost(post);
                                                         }}
-                                                        className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
+                                                        title={
+                                                            isOwnPost
+                                                                ? "You cannot apply to your own post."
+                                                                : undefined
+                                                        }
+                                                        className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 disabled:hover:bg-slate-300 sm:w-auto"
                                                     >
-                                                        Apply
+                                                        {isOwnPost ? "Your post" : "Apply"}
                                                     </button>
                                                 </div>
                                             </div>
@@ -301,7 +310,16 @@ export default function ListPostsPage() {
                         </div>
 
                         <div className="mt-6">
-                            <ApplicationForm postId={selectedPost.id} />
+                            {user?.id === selectedPost.userId ? (
+                                <p
+                                    role="status"
+                                    className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
+                                >
+                                    This is your post, so you cannot apply to it.
+                                </p>
+                            ) : (
+                                <ApplicationForm postId={selectedPost.id} />
+                            )}
                         </div>
                     </div>
                 </aside>

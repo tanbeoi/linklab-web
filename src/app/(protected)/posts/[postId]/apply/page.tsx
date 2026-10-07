@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { ApplicationForm } from "@/components/application-form";
+import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import type { CollabPost } from "@/types/posts";
 
 export default function ApplyToPostPage() {
+    const { user } = useAuth();
     // Get the postId from the URL parameters
     const { postId } = useParams<{ postId: string }>();
 
@@ -73,6 +75,8 @@ export default function ApplyToPostPage() {
         );
     }
 
+    const isOwnPost = user?.id === post.userId;
+
     return (
         <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
             <div className="mx-auto max-w-3xl">
@@ -85,7 +89,7 @@ export default function ApplyToPostPage() {
 
                 <article className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                     <h1 className="break-words text-3xl font-bold text-slate-900">
-                        Apply to {post.title}
+                        {isOwnPost ? post.title : `Apply to ${post.title}`}
                     </h1>
 
                     <p className="mt-4 whitespace-pre-wrap break-words leading-7 text-slate-600">
@@ -103,7 +107,16 @@ export default function ApplyToPostPage() {
                     </div>
 
                     <div className="mt-6">
-                        <ApplicationForm postId={post.id} />
+                        {isOwnPost ? (
+                            <p
+                                role="status"
+                                className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
+                            >
+                                This is your post, so you cannot apply to it.
+                            </p>
+                        ) : (
+                            <ApplicationForm postId={post.id} />
+                        )}
                     </div>
                 </article>
             </div>
