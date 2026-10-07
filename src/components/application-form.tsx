@@ -1,9 +1,8 @@
 "use client";
 
 import { SubmitEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 
-import { ApiRequestError, apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/api";
 import type { ApplyToPostRequest, ApplyToPostResponse } from "@/types/posts";
 
 type ApplicationFormProps = {
@@ -13,7 +12,6 @@ type ApplicationFormProps = {
 export function ApplicationForm({
     postId,
 }: ApplicationFormProps) {
-    const router = useRouter();
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,16 +39,6 @@ export function ApplicationForm({
 
             setIsSubmitted(true);
         } catch (error) {
-            if (error instanceof ApiRequestError && error.status === 401) {
-                const returnTo =
-                    window.location.pathname + window.location.search;
-
-                router.replace(
-                    `/login?next=${encodeURIComponent(returnTo)}`,
-                );
-                return;
-            }
-
             setError(
                 error instanceof Error
                     ? error.message

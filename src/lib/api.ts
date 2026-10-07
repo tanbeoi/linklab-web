@@ -1,6 +1,7 @@
 import type { ApiError } from "@/types/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+export const UNAUTHORIZED_EVENT = "linklab:unauthorized";
 
 export class ApiRequestError extends Error {
     constructor(
@@ -66,12 +67,26 @@ export async function apiRequest<T>(
                 ? data as ApiError
                 : null;
 
-        throw new ApiRequestError(
+        const error = new ApiRequestError(
             apiError?.error ||
                 responseText ||
                 `Request failed with status ${response.status}`,
             response.status,
         );
+
+        const isLoginOrRegistrationRequest =
+            path === "/api/auth/login" ||
+            path === "/api/auth/register";
+
+        if (
+            response.status === 401 &&
+            !isLoginOrRegistrationRequest &&
+            typeof window !== "undefined"
+        ) {
+            window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+        }
+
+        throw error;
     }
 
     return data as T;

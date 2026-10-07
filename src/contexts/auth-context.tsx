@@ -7,8 +7,9 @@ import {
     useEffect,
     useState,
 } from "react";
+import { useRouter } from "next/navigation";
 
-import { apiRequest } from "@/lib/api";
+import { apiRequest, UNAUTHORIZED_EVENT } from "@/lib/api";
 import type { AuthResponse, AuthUser } from "@/types/auth";
 
 type AuthContextValue = {
@@ -34,6 +35,7 @@ export function AuthProvider({
 }: {
     children: React.ReactNode;
 }) {
+    const router = useRouter();
     const [user, setUser] = useState<AuthUser | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -68,11 +70,7 @@ export function AuthProvider({
                     setUser(user);
                 }
             } catch {
-                localStorage.removeItem("linklab_token");
-
-                if (!cancelled) {
-                    setUser(null);
-                }
+                logout();
             } finally {
                 if (!cancelled) {
                     setIsLoading(false);
@@ -85,7 +83,29 @@ export function AuthProvider({
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [logout]);
+
+    useEffect(() => {
+        function handleUnauthorized() {
+            logout();
+
+            const returnTo =
+                window.location.pathname + window.location.search;
+
+            router.replace(
+                `/login?next=${encodeURIComponent(returnTo)}`,
+            );
+        }
+
+        window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+
+        return () => {
+            window.removeEventListener(
+                UNAUTHORIZED_EVENT,
+                handleUnauthorized,
+            );
+        };
+    }, [logout, router]);
 
     return (
         <AuthContext.Provider
