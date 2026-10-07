@@ -2,21 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/auth-context";
 
 export function Navbar() {
     const router = useRouter();
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-    useEffect(() => {
-        setIsLoggedIn(
-            Boolean(localStorage.getItem("linklab_token")),
-        );
-    }, []);
+    const { isAuthenticated, isLoading, logout } = useAuth();
 
     function handleLogout() {
-        localStorage.removeItem("linklab_token");
-        setIsLoggedIn(false);
+        logout();
         router.push("/login");
     }
 
@@ -38,7 +31,7 @@ export function Navbar() {
                         Posts
                     </Link>
 
-                    {isLoggedIn ? (
+                    {!isLoading && (isAuthenticated ? (
                         <>
                             <Link
                                 href="/posts/new"
@@ -78,7 +71,7 @@ export function Navbar() {
                                 Register
                             </Link>
                         </>
-                    )}
+                    ))}
                 </div>
             </nav>
         </header>

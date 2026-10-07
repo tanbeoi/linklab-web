@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type {AuthResponse} from "@/types/auth";
 import {apiRequest} from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login } = useAuth();
 
   const [registerHref, setRegisterHref] =
     useState("/register");
@@ -47,7 +49,7 @@ export default function LoginPage() {
         }
       );
       
-      localStorage.setItem("linklab_token", data.token);
+      login(data);
 
       // read "next" after successful login 
       const searchParams = new URLSearchParams(window.location.search);

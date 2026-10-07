@@ -5,10 +5,11 @@ import { SubmitEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AuthResponse } from "@/types/auth";
 import {apiRequest} from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function RegisterPage() {
   const router = useRouter();
-
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -41,7 +42,7 @@ export default function RegisterPage() {
         }
       );
 
-      localStorage.setItem("linklab_token", data.token);
+      login(data);
 
       // read "next" after successful login 
       const searchParams = new URLSearchParams(window.location.search);
