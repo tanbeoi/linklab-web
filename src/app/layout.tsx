@@ -25,11 +25,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-    <body className="flex min-h-screen flex-col">
+    <body className="flex h-dvh flex-col overflow-hidden">
         <AuthProvider>
             <Navbar />
 
-            <div className="flex-1">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                 {children}
             </div>
         </AuthProvider>

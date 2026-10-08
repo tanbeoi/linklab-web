@@ -96,7 +96,7 @@ export default function ListPostsPage() {
 
 
     return (
-        <main className="flex h-dvh overflow-hidden bg-slate-50 text-slate-900">
+        <main className="flex min-h-0 flex-1 overflow-hidden bg-slate-50 text-slate-900">
             {/* Left: Posts */}
             <div
                 // Because the apply button have stopPropagation, clicking on it doensn't mean clicking on the Posts section
