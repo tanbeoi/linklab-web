@@ -1,14 +1,14 @@
-//  this component is a client component because it uses useState and useRouter, which are client-side hooks.
+// This is a client component because it uses React state and browser APIs.
  "use client";
 
-import { SubmitEvent, useState } from "react";
+import { Suspense, SubmitEvent, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type {AuthResponse} from "@/types/auth";
 import {apiRequest} from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
@@ -140,5 +140,21 @@ export default function LoginPage() {
         </p>
       </form>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-zinc-100 px-4 py-12">
+          <p className="text-sm text-zinc-600">
+            Loading login page...
+          </p>
+        </main>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
   );
 }
