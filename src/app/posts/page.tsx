@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/api";
 import { CollabPost, PagedResponse } from "@/types/posts";
 import { ApplicationForm } from "@/components/application-form";
 import { useAuth } from "@/contexts/auth-context";
-import Image from "next/image";
+import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -218,12 +218,9 @@ export default function ListPostsPage() {
                                                                         key={imageUrl}
                                                                         className="relative aspect-[4/3] min-w-0 overflow-hidden rounded-md bg-slate-100"
                                                                     >
-                                                                        <Image
+                                                                        <MoodboardThumbnail
                                                                             src={imageUrl}
                                                                             alt={`Moodboard image ${index + 1} for ${post.title}`}
-                                                                            fill
-                                                                            sizes="(max-width: 640px) 33vw, 220px"
-                                                                            className="object-cover"
                                                                         />
 
                                                                         {showRemainingCount && (
