@@ -38,6 +38,23 @@ export default function ListPostsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedPost, setSelectedPost] = useState<CollabPost | null>(null);
 
+    function markPostAsApplied(postId: string) {
+        setPostsResponse((currentResponse) => {
+            if (!currentResponse) {
+                return currentResponse;
+            }
+
+            return {
+                ...currentResponse,
+                items: currentResponse.items.map((post) =>
+                    post.id === postId
+                        ? { ...post, hasCurrentUserApplied: true }
+                        : post,
+                ),
+            };
+        });
+    }
+
     useEffect(() => {
 
         let cancelled = false;
@@ -137,6 +154,8 @@ export default function ListPostsPage() {
                             <section className="space-y-4" aria-label="Collaboration posts">
                                 {postsResponse.items.map((post) => {
                                     const isOwnPost = user?.id === post.userId;
+                                    const hasAlreadyApplied =
+                                        post.hasCurrentUserApplied;
                                     const previewImages =
                                         post.moodboardPreviewImageUrls;
 
@@ -220,7 +239,11 @@ export default function ListPostsPage() {
                                                 <div className="sm:flex sm:justify-end">
                                                     <button
                                                         type="button"
-                                                        disabled={isOwnPost || isAuthLoading}
+                                                        disabled={
+                                                            isOwnPost ||
+                                                            hasAlreadyApplied ||
+                                                            isAuthLoading
+                                                        }
                                                         onClick={(event) => {
                                                             // stopPropagation stops the button from reacting when the user clicks on the posts page, which would otherwise immediately closes the opened panel
                                                             event.stopPropagation();
@@ -241,6 +264,8 @@ export default function ListPostsPage() {
                                                         title={
                                                             isOwnPost
                                                                 ? "You cannot apply to your own post."
+                                                                : hasAlreadyApplied
+                                                                ? "You have already applied to this post."
                                                                 : isAuthLoading
                                                                 ? "Checking your session..."
                                                                 : undefined
@@ -249,6 +274,8 @@ export default function ListPostsPage() {
                                                     >
                                                         {isOwnPost
                                                             ? "Your post"
+                                                            : hasAlreadyApplied
+                                                            ? "Applied"
                                                             : isAuthLoading
                                                             ? "Checking..."
                                                             : "Apply"}
@@ -341,8 +368,20 @@ export default function ListPostsPage() {
                                 >
                                     This is your post, so you cannot apply to it.
                                 </p>
+                            ) : selectedPost.hasCurrentUserApplied ? (
+                                <p
+                                    role="status"
+                                    className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800"
+                                >
+                                    You have already applied to this post.
+                                </p>
                             ) : (
-                                <ApplicationForm postId={selectedPost.id} />
+                                <ApplicationForm
+                                    postId={selectedPost.id}
+                                    onSubmitted={() =>
+                                        markPostAsApplied(selectedPost.id)
+                                    }
+                                />
                             )}
                         </div>
                     </div>

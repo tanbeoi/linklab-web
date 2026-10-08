@@ -9,6 +9,7 @@ export type CollabPost = {
     ownerDisplayName: string;
     moodboardPreviewImageUrls: string[];
     moodboardPhotoCount: number;
+    hasCurrentUserApplied: boolean;
 };
 
 export type PagedResponse<T> = {
@@ -41,4 +42,3 @@ export type ApplyToPostResponse = {
     createdAtUtc: string;
     decidedAtUtc?: string;
 };
-

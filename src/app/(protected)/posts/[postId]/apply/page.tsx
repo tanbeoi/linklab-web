@@ -76,6 +76,7 @@ export default function ApplyToPostPage() {
     }
 
     const isOwnPost = user?.id === post.userId;
+    const hasAlreadyApplied = post.hasCurrentUserApplied;
 
     return (
         <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
@@ -89,7 +90,9 @@ export default function ApplyToPostPage() {
 
                 <article className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                     <h1 className="break-words text-3xl font-bold text-slate-900">
-                        {isOwnPost ? post.title : `Apply to ${post.title}`}
+                        {isOwnPost || hasAlreadyApplied
+                            ? post.title
+                            : `Apply to ${post.title}`}
                     </h1>
 
                     <p className="mt-4 whitespace-pre-wrap break-words leading-7 text-slate-600">
@@ -113,6 +116,13 @@ export default function ApplyToPostPage() {
                                 className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
                             >
                                 This is your post, so you cannot apply to it.
+                            </p>
+                        ) : hasAlreadyApplied ? (
+                            <p
+                                role="status"
+                                className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800"
+                            >
+                                You have already applied to this post.
                             </p>
                         ) : (
                             <ApplicationForm postId={post.id} />

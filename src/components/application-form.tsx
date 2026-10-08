@@ -7,10 +7,12 @@ import type { ApplyToPostRequest, ApplyToPostResponse } from "@/types/posts";
 
 type ApplicationFormProps = {
     postId: string;
+    onSubmitted?: () => void;
 };
 
 export function ApplicationForm({
     postId,
+    onSubmitted,
 }: ApplicationFormProps) {
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
@@ -38,6 +40,7 @@ export function ApplicationForm({
             );
 
             setIsSubmitted(true);
+            onSubmitted?.();
         } catch (error) {
             setError(
                 error instanceof Error
