@@ -68,7 +68,7 @@ export default function HomePage() {
 
                 <section className="mt-12 rounded-lg border border-blue-100 bg-blue-50 p-6">
                     <h2 className="text-xl font-bold text-slate-900">
-                        Coming next: messaging
+                        Coming next: Messaging
                     </h2>
                     <p className="mt-2 max-w-2xl leading-7 text-slate-600">
                         Messaging is planned for a future update, so collaborators

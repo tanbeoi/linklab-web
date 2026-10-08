@@ -22,34 +22,23 @@ export default function DashboardPage() {
                 </p>
 
                 <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <Link
+                        href="/my-posts"
+                        className="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
                         <h2 className="text-lg font-semibold">Your posts</h2>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
-                            Create a new opportunity or browse collaboration posts.
+                            Review the collaboration opportunities you have created.
                         </p>
-                        <div className="mt-4 flex flex-wrap gap-3">
-                            <Link
-                                href="/posts/new"
-                                className="text-sm font-medium text-blue-700 hover:text-blue-800"
-                            >
-                                Create post
-                            </Link>
-                            <Link
-                                href="/posts"
-                                className="text-sm font-medium text-blue-700 hover:text-blue-800"
-                            >
-                                Browse posts
-                            </Link>
-                            <Link
-                                href="/my-posts"
-                                className="text-sm font-medium text-blue-700 hover:text-blue-800"
-                            >
-                                View my posts
-                            </Link>
-                        </div>
-                    </article>
+                        <p className="mt-4 text-sm font-medium text-blue-700">
+                            View my posts →
+                        </p>
+                    </Link>
 
-                    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <Link
+                        href="/received-applications"
+                        className="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
                         <h2 className="text-lg font-semibold">
                             Applications received
                         </h2>
@@ -57,15 +46,15 @@ export default function DashboardPage() {
                             Review applications from creatives who want to join your
                             collaboration posts.
                         </p>
-                        <Link
-                            href="/received-applications"
-                            className="mt-4 inline-block text-sm font-medium text-blue-700 hover:text-blue-800"
-                        >
-                            View received applications
-                        </Link>
-                    </article>
+                        <p className="mt-4 text-sm font-medium text-blue-700">
+                            View received applications →
+                        </p>
+                    </Link>
 
-                    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <Link
+                        href="/my-applications"
+                        className="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
                         <h2 className="text-lg font-semibold">
                             Applications I submitted
                         </h2>
@@ -73,15 +62,15 @@ export default function DashboardPage() {
                             Track the applications you have sent to collaboration
                             posts and their current status.
                         </p>
-                        <Link
-                            href="/my-applications"
-                            className="mt-4 inline-block text-sm font-medium text-blue-700 hover:text-blue-800"
-                        >
-                            View my applications
-                        </Link>
-                    </article>
+                        <p className="mt-4 text-sm font-medium text-blue-700">
+                            View my applications →
+                        </p>
+                    </Link>
 
-                    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <Link
+                        href="/accepted-collaborations"
+                        className="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
                         <h2 className="text-lg font-semibold">
                             Accepted collaborations
                         </h2>
@@ -89,27 +78,24 @@ export default function DashboardPage() {
                             Keep track of the projects where your application has
                             been accepted.
                         </p>
-                        <Link
-                            href="/accepted-collaborations"
-                            className="mt-4 inline-block text-sm font-medium text-blue-700 hover:text-blue-800"
-                        >
-                            View accepted collaborations
-                        </Link>
-                    </article>
+                        <p className="mt-4 text-sm font-medium text-blue-700">
+                            View accepted collaborations →
+                        </p>
+                    </Link>
 
-                    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <Link
+                        href="/my-galleries"
+                        className="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
                         <h2 className="text-lg font-semibold">Your galleries</h2>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
                             Organise creative references and publish moodboards for
                             others to explore.
                         </p>
-                        <Link
-                            href="/my-galleries"
-                            className="mt-4 inline-block text-sm font-medium text-blue-700 hover:text-blue-800"
-                        >
-                            View my galleries
-                        </Link>
-                    </article>
+                        <p className="mt-4 text-sm font-medium text-blue-700">
+                            View my galleries →
+                        </p>
+                    </Link>
                 </section>
             </div>
         </main>

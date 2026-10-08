@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import { apiRequest } from "@/lib/api";
@@ -183,6 +184,13 @@ export default function MyPostsPage() {
                                                 ).toLocaleDateString()}
                                             </p>
                                         </div>
+
+                                        <Link
+                                            href={`/my-posts/${post.id}/applications`}
+                                            className="mt-5 inline-block rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        >
+                                            View applicants
+                                        </Link>
                                     </article>
                                 );
                             })}

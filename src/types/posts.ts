@@ -66,3 +66,25 @@ export type ReceivedApplication = {
     createdAtUtc: string;
     decidedAtUtc: string | null;
 };
+
+export type PostApplication = {
+    id: string;
+    postId: string;
+    applicantUserId: string;
+    applicantEmail: string;
+    applicantDisplayName: string;
+    message: string;
+    status: ApplicationStatus;
+    createdAtUtc: string;
+    decidedAtUtc: string | null;
+};
+
+export type ApplicationDecisionResponse = {
+    id: string;
+    postId: string;
+    applicantUserId: string;
+    message: string;
+    status: ApplicationStatus;
+    createdAtUtc: string;
+    decidedAtUtc: string | null;
+};
