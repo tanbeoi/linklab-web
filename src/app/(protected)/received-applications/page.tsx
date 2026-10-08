@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { apiRequest } from "@/lib/api";
 import type {
+    ApplicationDecisionResponse,
     ApplicationStatus,
     PagedResponse,
     ReceivedApplication,
@@ -27,7 +28,9 @@ export default function ReceivedApplicationsPage() {
     const [applicationsResponse, setApplicationsResponse] =
         useState<PagedResponse<ReceivedApplication> | null>(null);
     const [error, setError] = useState("");
+    const [actionError, setActionError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const [decisionInProgressId, setDecisionInProgressId] = useState("");
 
     useEffect(() => {
         let cancelled = false;
@@ -65,6 +68,50 @@ export default function ReceivedApplicationsPage() {
             cancelled = true;
         };
     }, [page, pageSize]);
+
+    async function decideApplication(
+        applicationId: string,
+        decision: "accept" | "reject",
+    ) {
+        setDecisionInProgressId(applicationId);
+        setActionError("");
+
+        try {
+            const updatedApplication =
+                await apiRequest<ApplicationDecisionResponse>(
+                    `/api/applications/${applicationId}/${decision}`,
+                    { method: "POST" },
+                );
+
+            setApplicationsResponse((currentResponse) => {
+                if (!currentResponse) {
+                    return currentResponse;
+                }
+
+                return {
+                    ...currentResponse,
+                    items: currentResponse.items.map((application) =>
+                        application.id === applicationId
+                            ? {
+                                  ...application,
+                                  status: updatedApplication.status,
+                                  decidedAtUtc:
+                                      updatedApplication.decidedAtUtc,
+                              }
+                            : application,
+                    ),
+                };
+            });
+        } catch (error) {
+            setActionError(
+                error instanceof Error
+                    ? error.message
+                    : "Could not update this application.",
+            );
+        } finally {
+            setDecisionInProgressId("");
+        }
+    }
 
     return (
         <main className="bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
@@ -111,8 +158,21 @@ export default function ReceivedApplicationsPage() {
                     </p>
                 ) : (
                     <>
+                        {actionError && (
+                            <p
+                                role="alert"
+                                className="mt-8 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+                            >
+                                {actionError}
+                            </p>
+                        )}
                         <section className="mt-8 space-y-4" aria-label="Applications received">
-                            {applicationsResponse.items.map((application) => (
+                            {applicationsResponse.items.map((application) => {
+                                const isPending = application.status === "Pending";
+                                const isDeciding =
+                                    decisionInProgressId === application.id;
+
+                                return (
                                 <article key={application.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                                     <div className="flex flex-wrap items-start justify-between gap-3">
                                         <div>
@@ -142,8 +202,44 @@ export default function ReceivedApplicationsPage() {
                                             </p>
                                         )}
                                     </div>
+
+                                    {isPending && (
+                                        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                                            <button
+                                                type="button"
+                                                disabled={Boolean(decisionInProgressId)}
+                                                onClick={() =>
+                                                    void decideApplication(
+                                                        application.id,
+                                                        "accept",
+                                                    )
+                                                }
+                                                className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                                            >
+                                                {isDeciding
+                                                    ? "Updating..."
+                                                    : "Accept"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={Boolean(decisionInProgressId)}
+                                                onClick={() =>
+                                                    void decideApplication(
+                                                        application.id,
+                                                        "reject",
+                                                    )
+                                                }
+                                                className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-red-200 disabled:text-red-300"
+                                            >
+                                                {isDeciding
+                                                    ? "Updating..."
+                                                    : "Reject"}
+                                            </button>
+                                        </div>
+                                    )}
                                 </article>
-                            ))}
+                                );
+                            })}
                         </section>
 
                         <nav className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between" aria-label="Received applications pagination">

@@ -157,19 +157,14 @@ export default function ListPostsPage() {
                                     const hasAlreadyApplied =
                                         post.hasCurrentUserApplied;
                                     const isApplyDisabled =
-                                        isOwnPost ||
                                         hasAlreadyApplied ||
                                         isAuthLoading;
-                                    const applyButtonLabel = isOwnPost
-                                        ? "Your post"
-                                        : hasAlreadyApplied
+                                    const applyButtonLabel = hasAlreadyApplied
                                         ? "Applied"
                                         : isAuthLoading
                                         ? "Checking..."
                                         : "Apply";
-                                    const applyButtonTitle = isOwnPost
-                                        ? "You cannot apply to your own post."
-                                        : hasAlreadyApplied
+                                    const applyButtonTitle = hasAlreadyApplied
                                         ? "You have already applied to this post."
                                         : isAuthLoading
                                         ? "Checking your session..."
@@ -252,7 +247,17 @@ export default function ListPostsPage() {
                                                 </div>
 
                                                 <div className="sm:flex sm:justify-end">
-                                                    {isApplyDisabled ? (
+                                                    {isOwnPost ? (
+                                                        <Link
+                                                            href={`/my-posts/${post.id}/applications`}
+                                                            onClick={(event) =>
+                                                                event.stopPropagation()
+                                                            }
+                                                            className="inline-flex w-full items-center justify-center rounded-md border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:w-auto"
+                                                        >
+                                                            View applicants
+                                                        </Link>
+                                                    ) : isApplyDisabled ? (
                                                         <button
                                                             type="button"
                                                             disabled
