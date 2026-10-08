@@ -156,6 +156,24 @@ export default function ListPostsPage() {
                                     const isOwnPost = user?.id === post.userId;
                                     const hasAlreadyApplied =
                                         post.hasCurrentUserApplied;
+                                    const isApplyDisabled =
+                                        isOwnPost ||
+                                        hasAlreadyApplied ||
+                                        isAuthLoading;
+                                    const applyButtonLabel = isOwnPost
+                                        ? "Your post"
+                                        : hasAlreadyApplied
+                                        ? "Applied"
+                                        : isAuthLoading
+                                        ? "Checking..."
+                                        : "Apply";
+                                    const applyButtonTitle = isOwnPost
+                                        ? "You cannot apply to your own post."
+                                        : hasAlreadyApplied
+                                        ? "You have already applied to this post."
+                                        : isAuthLoading
+                                        ? "Checking your session..."
+                                        : undefined;
                                     const previewImages =
                                         post.moodboardPreviewImageUrls;
 
@@ -237,49 +255,49 @@ export default function ListPostsPage() {
                                                 </div>
 
                                                 <div className="sm:flex sm:justify-end">
-                                                    <button
-                                                        type="button"
-                                                        disabled={
-                                                            isOwnPost ||
-                                                            hasAlreadyApplied ||
-                                                            isAuthLoading
-                                                        }
-                                                        onClick={(event) => {
-                                                            // stopPropagation stops the button from reacting when the user clicks on the posts page, which would otherwise immediately closes the opened panel
-                                                            event.stopPropagation();
+                                                    {isApplyDisabled ? (
+                                                        <button
+                                                            type="button"
+                                                            disabled
+                                                            title={applyButtonTitle}
+                                                            className="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-slate-300 px-5 py-2.5 text-sm font-medium text-slate-600 sm:w-auto"
+                                                        >
+                                                            {applyButtonLabel}
+                                                        </button>
+                                                    ) : (
+                                                        <>
+                                                            <Link
+                                                                href={`/posts/${post.id}/apply`}
+                                                                className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto lg:hidden"
+                                                            >
+                                                                Apply
+                                                            </Link>
 
-                                                            if (!isAuthenticated) {
-                                                                const returnTo =
-                                                                    window.location.pathname +
-                                                                    window.location.search;
+                                                            <button
+                                                                type="button"
+                                                                onClick={(event) => {
+                                                                    // Prevent the posts-area click handler from closing the panel.
+                                                                    event.stopPropagation();
 
-                                                                router.push(
-                                                                    `/login?next=${encodeURIComponent(returnTo)}`,
-                                                                );
-                                                                return;
-                                                            }
+                                                                    if (!isAuthenticated) {
+                                                                        const returnTo =
+                                                                            window.location.pathname +
+                                                                            window.location.search;
 
-                                                            setSelectedPost(post);
-                                                        }}
-                                                        title={
-                                                            isOwnPost
-                                                                ? "You cannot apply to your own post."
-                                                                : hasAlreadyApplied
-                                                                ? "You have already applied to this post."
-                                                                : isAuthLoading
-                                                                ? "Checking your session..."
-                                                                : undefined
-                                                        }
-                                                        className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 disabled:hover:bg-slate-300 sm:w-auto"
-                                                    >
-                                                        {isOwnPost
-                                                            ? "Your post"
-                                                            : hasAlreadyApplied
-                                                            ? "Applied"
-                                                            : isAuthLoading
-                                                            ? "Checking..."
-                                                            : "Apply"}
-                                                    </button>
+                                                                        router.push(
+                                                                            `/login?next=${encodeURIComponent(returnTo)}`,
+                                                                        );
+                                                                        return;
+                                                                    }
+
+                                                                    setSelectedPost(post);
+                                                                }}
+                                                                className="hidden w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto lg:inline-flex"
+                                                            >
+                                                                Apply
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </article>
@@ -317,7 +335,7 @@ export default function ListPostsPage() {
             {selectedPost && (
                 <aside
                     aria-label={`Apply to ${selectedPost.title}`}
-                    className="h-full w-1/2 min-w-0 shrink-0 overflow-y-auto overscroll-contain border-l border-slate-200 bg-white"
+                    className="hidden h-full min-w-0 shrink-0 overflow-y-auto overscroll-contain border-l border-slate-200 bg-white lg:block lg:w-1/2"
                 >
                     <div className="p-6">
                         <div className="flex items-center justify-between gap-4">
