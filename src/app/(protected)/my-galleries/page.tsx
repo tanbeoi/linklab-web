@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import { apiRequest } from "@/lib/api";
-import type { Gallery } from "@/types/galleries";
+import {
+    galleryPurposeLabels,
+    type Gallery,
+} from "@/types/galleries";
+import Link from "next/link";
 
 export default function MyGalleriesPage() {
     const [galleries, setGalleries] = useState<Gallery[]>([]);
@@ -46,13 +50,23 @@ export default function MyGalleriesPage() {
     return (
         <main className="bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
             <div className="mx-auto max-w-5xl">
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                    My Galleries
-                </h1>
-                <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-                    Your private and published galleries, including moodboards
-                    linked to collaboration posts.
-                </p>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                            My Galleries
+                        </h1>
+                        <p className="mt-3 max-w-2xl leading-7 text-slate-600">
+                            Your private and published galleries, including moodboards
+                            linked to collaboration posts.
+                        </p>
+                    </div>
+                    <Link
+                        href="/galleries/new"
+                        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                        Create gallery
+                    </Link>
+                </div>
 
                 {isLoading ? (
                     <p className="mt-8 text-slate-600">Loading your galleries...</p>
@@ -93,14 +107,20 @@ export default function MyGalleriesPage() {
 
                                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                                     <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
-                                        {gallery.purpose === 1
-                                            ? "Moodboard"
-                                            : "Portfolio"}
+                                        {galleryPurposeLabels[gallery.purpose]}
                                     </span>
                                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                                         {gallery.isPublished ? "Published" : "Draft"}
                                     </span>
                                 </div>
+                                <p className="mt-3 text-sm text-slate-500">
+                                    {gallery.photoCount} {gallery.photoCount === 1 ? "photo" : "photos"}
+                                </p>
+                                <p className="mt-1 break-words text-sm text-slate-500">
+                                    {gallery.collabPostTitle
+                                        ? `Linked post: ${gallery.collabPostTitle}`
+                                        : "Not linked to a post"}
+                                </p>
                             </article>
                         ))}
                     </section>

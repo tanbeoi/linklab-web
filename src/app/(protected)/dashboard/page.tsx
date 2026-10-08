@@ -84,7 +84,7 @@ export default function DashboardPage() {
                     </Link>
 
                     <Link
-                        href="/my-galleries"
+                        href="/galleries/mine"
                         className="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                     >
                         <h2 className="text-lg font-semibold">Your galleries</h2>

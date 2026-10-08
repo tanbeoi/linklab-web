@@ -116,7 +116,7 @@ export function Navbar() {
                                     <Link href="/galleries" className={desktopLinkClassName}>
                                         Public Galleries
                                     </Link>
-                                    <Link href="/my-galleries" className={desktopLinkClassName}>
+                                    <Link href="/galleries/mine" className={desktopLinkClassName}>
                                         My Galleries
                                     </Link>
                                     <button
@@ -212,7 +212,7 @@ export function Navbar() {
                                         <Link href="/galleries" onClick={closeMenu} className={mobileLinkClassName}>
                                             Public Galleries
                                         </Link>
-                                        <Link href="/my-galleries" onClick={closeMenu} className={mobileLinkClassName}>
+                                        <Link href="/galleries/mine" onClick={closeMenu} className={mobileLinkClassName}>
                                             My Galleries
                                         </Link>
                                         <button
