@@ -57,9 +57,12 @@ export default function DashboardPage() {
                             Review applications from creatives who want to join your
                             collaboration posts.
                         </p>
-                        <p className="mt-4 text-sm text-slate-500">
-                            Select one of your posts to manage its applications.
-                        </p>
+                        <Link
+                            href="/received-applications"
+                            className="mt-4 inline-block text-sm font-medium text-blue-700 hover:text-blue-800"
+                        >
+                            View received applications
+                        </Link>
                     </article>
 
                     <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -86,10 +89,12 @@ export default function DashboardPage() {
                             Keep track of the projects where your application has
                             been accepted.
                         </p>
-                        <p className="mt-4 text-sm text-slate-500">
-                            Accepted collaborations will appear here in a future
-                            update.
-                        </p>
+                        <Link
+                            href="/accepted-collaborations"
+                            className="mt-4 inline-block text-sm font-medium text-blue-700 hover:text-blue-800"
+                        >
+                            View accepted collaborations
+                        </Link>
                     </article>
 
                     <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

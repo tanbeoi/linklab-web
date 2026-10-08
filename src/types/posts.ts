@@ -43,12 +43,26 @@ export type ApplyToPostResponse = {
     decidedAtUtc?: string;
 };
 
+export type ApplicationStatus = "Pending" | "Accepted" | "Rejected";
+
 export type MyApplication = {
     id: string;
     postId: string;
     postTitle: string;
     message: string;
-    status: "Pending" | "Accepted" | "Rejected";
+    status: ApplicationStatus;
+    createdAtUtc: string;
+    decidedAtUtc: string | null;
+};
+
+export type ReceivedApplication = {
+    id: string;
+    postId: string;
+    postTitle: string;
+    applicantUserId: string;
+    applicantDisplayName: string;
+    message: string;
+    status: ApplicationStatus;
     createdAtUtc: string;
     decidedAtUtc: string | null;
 };
