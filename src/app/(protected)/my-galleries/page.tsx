@@ -88,8 +88,15 @@ export default function MyGalleriesPage() {
                         {galleries.map((gallery) => (
                             <article
                                 key={gallery.id}
-                                className="min-w-0"
+                                className="group relative min-w-0"
                             >
+                                <Link
+                                    href={`/galleries/${gallery.id}/edit`}
+                                    aria-label={`Edit ${gallery.title}`}
+                                    className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-lg text-slate-700 shadow-sm transition hover:bg-white hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-600 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                                >
+                                    <span aria-hidden="true">⚒</span>
+                                </Link>
                                 <button type="button" onClick={() => setViewingGallery({ gallery })}
                                     aria-label={`View ${gallery.title}`}
                                     className="relative block w-full aspect-[4/3] overflow-hidden rounded-md bg-slate-200 focus-visible:outline-2 focus-visible:outline-blue-600">

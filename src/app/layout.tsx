@@ -29,7 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AuthProvider>
             <Navbar />
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            <div className="app-scroll-area flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50">
                 {children}
             </div>
         </AuthProvider>

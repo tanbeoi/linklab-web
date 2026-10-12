@@ -17,3 +17,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* The shell owns scrolling. These route markers keep its canvas aligned with
+   pages whose content can extend beyond the initial flex item height. */
+.app-scroll-area:has(.public-gallery-page) {
+  background: #020617;
+}
+
+.app-scroll-area:has(.gallery-editor-page) {
+  background: #f1f5f9;
+}

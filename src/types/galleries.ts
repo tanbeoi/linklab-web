@@ -39,6 +39,16 @@ export type CreateGalleryRequest = {
     collabPostId?: string | null;
 };
 
+export type UpdateGalleryRequest = {
+    title: string;
+    description: string;
+    purpose: GalleryPurpose;
+};
+
+export type UpdateGalleryCollabPostRequest = {
+    collabPostId: string | null;
+};
+
 export type CreatePhotoUploadUrlRequest = {
     fileName?: string;
     contentType: string;
@@ -50,4 +60,12 @@ export type CreatePhotoUploadUrlResponse = {
     objectKey: string;
     uploadUrl: string;
     expiresAtUtc: string;
+};
+
+export type AddPhotoToGalleryRequest = {
+    photoId: string;
+    objectKey: string;
+    caption?: string;
+    insertAfterPhotoId?: string;
+    insertAtStart?: boolean;
 };

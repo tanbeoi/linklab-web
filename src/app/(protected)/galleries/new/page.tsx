@@ -1,18 +1,46 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { apiRequest } from "@/lib/api";
 import type { CreateGalleryRequest, GalleryPurpose } from "@/types/galleries";
+import type { CollabPost, MyApplication, PagedResponse } from "@/types/posts";
 
 export default function CreateGalleryPage() {
     const router = useRouter();
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [purpose, setPurpose] = useState<GalleryPurpose>(0);
+    const [collabPostId, setCollabPostId] = useState("");
+    const [collaborations, setCollaborations] = useState<{ id: string; title: string }[]>([]);
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadCollaborations() {
+            try {
+                const [ownPosts, acceptedApplications] = await Promise.all([
+                    apiRequest<PagedResponse<CollabPost>>("/api/posts/mine?page=1&pageSize=50"),
+                    apiRequest<PagedResponse<MyApplication>>("/api/applications/mine/accepted?page=1&pageSize=50"),
+                ]);
+
+                if (cancelled) return;
+
+                const options = new Map<string, string>();
+                ownPosts.items.forEach((post) => options.set(post.id, post.title));
+                acceptedApplications.items.forEach((application) => options.set(application.postId, application.postTitle));
+                setCollaborations([...options].map(([id, title]) => ({ id, title })));
+            } catch {
+                // The gallery can still be created without a linked collaboration.
+            }
+        }
+
+        void loadCollaborations();
+        return () => { cancelled = true; };
+    }, []);
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -23,6 +51,7 @@ export default function CreateGalleryPage() {
             title,
             description,
             purpose,
+            collabPostId: collabPostId || null,
         };
 
         try {
@@ -80,6 +109,27 @@ export default function CreateGalleryPage() {
                         <option value={0}>Portfolio</option>
                         <option value={1}>Moodboard</option>
                     </select>
+
+                    <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="collaboration">
+                        Linked collaboration
+                    </label>
+                    <select
+                        id="collaboration"
+                        value={collabPostId}
+                        onChange={(event) => setCollabPostId(event.target.value)}
+                        className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    >
+                        <option value="">Not linked to a collaboration</option>
+                        {collaborations.map((collaboration) => (
+                            <option key={collaboration.id} value={collaboration.id}>
+                                {collaboration.title}
+                            </option>
+                        ))}
+                    </select>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                        You can link your own post or a collaboration where your application was accepted.
+                        Each post can have one moodboard.
+                    </p>
 
                     <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="description">
                         Description
