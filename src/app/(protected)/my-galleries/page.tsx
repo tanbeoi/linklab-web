@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { GalleryViewer } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import { apiRequest } from "@/lib/api";
 import {
@@ -11,6 +12,7 @@ import {
 import Link from "next/link";
 
 export default function MyGalleriesPage() {
+    const [viewingGallery, setViewingGallery] = useState<{ gallery: Gallery } | null>(null);
     const [galleries, setGalleries] = useState<Gallery[]>([]);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +90,9 @@ export default function MyGalleriesPage() {
                                 key={gallery.id}
                                 className="min-w-0"
                             >
-                                <div className="relative aspect-[4/3] overflow-hidden rounded-md bg-slate-200">
+                                <button type="button" onClick={() => setViewingGallery({ gallery })}
+                                    aria-label={`View ${gallery.title}`}
+                                    className="relative block w-full aspect-[4/3] overflow-hidden rounded-md bg-slate-200 focus-visible:outline-2 focus-visible:outline-blue-600">
                                     {gallery.previewImageUrl ? (
                                         <MoodboardThumbnail
                                             src={gallery.previewImageUrl}
@@ -99,10 +103,10 @@ export default function MyGalleriesPage() {
                                             No images yet
                                         </div>
                                     )}
-                                </div>
+                                </button>
 
                                 <h2 className="mt-3 break-words text-base font-semibold text-slate-900">
-                                    {gallery.title}
+                                    <button type="button" onClick={() => setViewingGallery({ gallery })} className="text-left hover:underline">{gallery.title}</button>
                                 </h2>
 
                                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
@@ -126,6 +130,7 @@ export default function MyGalleriesPage() {
                     </section>
                 )}
             </div>
+            {viewingGallery && <GalleryViewer source={viewingGallery} onClose={() => setViewingGallery(null)} />}
         </main>
     );
 }

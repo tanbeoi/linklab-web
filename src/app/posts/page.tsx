@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/api";
 import { CollabPost, PagedResponse } from "@/types/posts";
 import { ApplicationForm } from "@/components/application-form";
 import { useAuth } from "@/contexts/auth-context";
+import { GalleryViewer } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,6 +37,7 @@ export default function ListPostsPage() {
     const [pageSize, setPageSize] = useState(10);
     const [postsResponse, setPostsResponse] = useState<PagedResponse<CollabPost> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [viewingMoodboard, setViewingMoodboard] = useState<{ postId: string } | null>(null);
     const [selectedPost, setSelectedPost] = useState<CollabPost | null>(null);
 
     function markPostAsApplied(postId: string) {
@@ -209,9 +211,12 @@ export default function ListPostsPage() {
                                                                     remainingImageCount > 0;
 
                                                                 return (
-                                                                    <div
+                                                                    <button
+                                                                        type="button"
                                                                         key={imageUrl}
-                                                                        className="relative aspect-[4/3] min-w-0 overflow-hidden rounded-md bg-slate-100"
+                                                                        aria-label={`View moodboard for ${post.title}`}
+                                                                        onClick={(event) => { event.stopPropagation(); setViewingMoodboard({ postId: post.id }); }}
+                                                                        className="relative aspect-[4/3] min-w-0 overflow-hidden rounded-md bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600"
                                                                     >
                                                                         <MoodboardThumbnail
                                                                             src={imageUrl}
@@ -225,7 +230,7 @@ export default function ListPostsPage() {
                                                                                 </span>
                                                                             </div>
                                                                         )}
-                                                                    </div>
+                                                                    </button>
                                                                 );
                                                             })}
                                                         </div>
@@ -407,6 +412,7 @@ export default function ListPostsPage() {
                     </div>
                 </aside>
             )}
+            {viewingMoodboard && <GalleryViewer source={viewingMoodboard} onClose={() => setViewingMoodboard(null)} />}
         </main>
     );
 }
