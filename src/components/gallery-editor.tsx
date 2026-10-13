@@ -39,6 +39,10 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const [isPublishing, setIsPublishing] = useState(false);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
+    const [settingsFeedback, setSettingsFeedback] = useState<{
+        type: "success" | "error";
+        message: string;
+    } | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -139,6 +143,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         if (!gallery) return;
         setError("");
         setNotice("");
+        setSettingsFeedback(null);
         setIsSaving(true);
 
         try {
@@ -168,9 +173,15 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     ? collaborations.find((option) => option.id === collabPostId)?.title ?? null
                     : null,
             } : current);
-            setNotice("Gallery settings saved.");
+            setSettingsFeedback({
+                type: "success",
+                message: "Gallery settings saved.",
+            });
         } catch (cause) {
-            setError(errorMessage(cause, "Could not save the gallery settings."));
+            setSettingsFeedback({
+                type: "error",
+                message: errorMessage(cause, "Could not save the gallery settings."),
+            });
         } finally {
             setIsSaving(false);
         }
@@ -249,7 +260,13 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                             {collaborations.map((option) => <option key={option.id} value={option.id}>{option.title}</option>)}
                         </select>
                         <p className="mt-2 text-xs leading-5 text-slate-500">You can link your own post or a collaboration where your application was accepted. Each post can have one moodboard.</p>
-                        <button type="submit" disabled={isSaving} className="mt-5 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving…" : "Save settings"}</button>
+                        {settingsFeedback && <p
+                            role={settingsFeedback.type === "error" ? "alert" : "status"}
+                            className={`mt-5 rounded-md border p-3 text-sm ${settingsFeedback.type === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-800"}`}
+                        >
+                            {settingsFeedback.message}
+                        </p>}
+                        <button type="submit" disabled={isSaving} className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving…" : "Save settings"}</button>
                     </form>
 
                     <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
