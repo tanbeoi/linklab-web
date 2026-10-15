@@ -55,11 +55,11 @@ export default function CreateGalleryPage() {
         };
 
         try {
-            await apiRequest("/api/galleries", {
+            const createdGallery = await apiRequest<{ id: string }>("/api/galleries", {
                 method: "POST",
                 body: JSON.stringify(request),
             });
-            router.push("/galleries/mine");
+            router.push(`/galleries/${createdGallery.id}/edit`);
         } catch (error) {
             setError(
                 error instanceof Error
