@@ -31,6 +31,8 @@ export type Photo = {
     sortOrder: number;
     boardX: number | null;
     boardY: number | null;
+    boardWidth: number | null;
+    captionHeight: number | null;
     boardZIndex: number | null;
     createdAtUtc: string;
 };
@@ -76,6 +78,8 @@ export type AddPhotoToGalleryRequest = {
 export type UpdatePhotoBoardPositionRequest = {
     boardX: number;
     boardY: number;
+    boardWidth?: number;
+    captionHeight?: number;
 };
 
 export type UpdatePhotoCaptionsRequest = {

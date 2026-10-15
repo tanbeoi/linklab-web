@@ -5,8 +5,10 @@ import { ChangeEvent, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/contexts/auth-context";
 import {
+    MOODBOARD_CAPTION_HEIGHT,
     MOODBOARD_CARD_WIDTH,
     MoodboardBoard,
+    type MoodboardLayout,
 } from "@/components/moodboard-board";
 import { apiRequest } from "@/lib/api";
 import {
@@ -218,7 +220,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         }
     }
 
-    async function saveMoodboardPosition(photoId: string, position: { x: number; y: number }) {
+    async function saveMoodboardLayout(photoId: string, layout: MoodboardLayout) {
         if (!gallery) return;
 
         const previousPhotos = photos;
@@ -226,8 +228,10 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
 
         setPhotos((current) => current.map((photo) => photo.id === photoId ? {
             ...photo,
-            boardX: position.x,
-            boardY: position.y,
+            boardX: layout.x,
+            boardY: layout.y,
+            boardWidth: layout.width,
+            captionHeight: layout.captionHeight,
             boardZIndex: nextZIndex,
         } : photo));
         setError("");
@@ -238,8 +242,10 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 {
                     method: "PATCH",
                     body: JSON.stringify({
-                        boardX: position.x,
-                        boardY: position.y,
+                        boardX: layout.x,
+                        boardY: layout.y,
+                        boardWidth: layout.width,
+                        captionHeight: layout.captionHeight,
                     } satisfies UpdatePhotoBoardPositionRequest),
                 },
             );
@@ -284,7 +290,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     photos={photos.filter((photo) => photo.boardX === null || photo.boardY === null)}
                     isUploading={isUploading}
                     onUpload={() => openFilePicker()}
-                    onPlace={(photoId, position) => { void saveMoodboardPosition(photoId, position); }}
+                    onPlace={(photoId, position) => { void saveMoodboardLayout(photoId, position); }}
                 />}
 
                 {gallery.purpose === 1 ? (
@@ -292,8 +298,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                         photos={photos}
                         editable
                         captionDrafts={captionDrafts}
-                        onPositionChange={(photoId, position) => { void saveMoodboardPosition(photoId, position); }}
-                        onUnsortedDrop={(photoId, position) => { void saveMoodboardPosition(photoId, position); }}
+                        onLayoutChange={(photoId, layout) => { void saveMoodboardLayout(photoId, layout); }}
+                        onUnsortedDrop={(photoId, layout) => { void saveMoodboardLayout(photoId, layout); }}
                         onCaptionChange={updateCaption}
                     />
                 ) : (
@@ -310,7 +316,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                                             id={`photo-caption-${photo.id}`}
                                             value={captionDrafts[photo.id] ?? photo.caption ?? ""}
                                             onChange={(event) => updateCaption(photo, event.target.value)}
-                                            maxLength={1000}
+                                            maxLength={500}
                                             rows={2}
                                             placeholder="Click to add a caption"
                                             className="mt-1.5 block w-full resize-y rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm text-slate-600 outline-none transition placeholder:text-slate-400 hover:border-slate-200 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
@@ -377,7 +383,7 @@ function UnsortedTray({
     photos: Photo[];
     isUploading: boolean;
     onUpload: () => void;
-    onPlace: (photoId: string, position: { x: number; y: number }) => void;
+    onPlace: (photoId: string, layout: MoodboardLayout) => void;
 }) {
     return (
         <aside className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-5 xl:max-h-[calc(100dvh-4rem)] xl:overflow-y-auto">
@@ -414,6 +420,8 @@ function UnsortedTray({
                                     onClick={() => onPlace(photo.id, {
                                         x: 120 + (index % 5) * (MOODBOARD_CARD_WIDTH + 30),
                                         y: 120 + Math.floor(index / 5) * 280,
+                                        width: MOODBOARD_CARD_WIDTH,
+                                        captionHeight: MOODBOARD_CAPTION_HEIGHT,
                                     })}
                                     className="shrink-0 text-xs font-medium text-blue-700 hover:underline"
                                 >
