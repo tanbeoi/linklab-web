@@ -28,7 +28,11 @@ export async function apiRequest<T>(
     const headers = new Headers(options.headers);
 
     // check if the request has a body and if content-type has not been already provided
-    if (options.body && !headers.has("Content-Type")) {
+    if (
+        options.body &&
+        !(typeof FormData !== "undefined" && options.body instanceof FormData) &&
+        !headers.has("Content-Type")
+    ) {
         headers.set("Content-Type", "application/json");
     }
     

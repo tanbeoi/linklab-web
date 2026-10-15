@@ -29,6 +29,9 @@ export type Photo = {
     imageUrl: string;
     caption: string | null;
     sortOrder: number;
+    boardX: number | null;
+    boardY: number | null;
+    boardZIndex: number | null;
     createdAtUtc: string;
 };
 
@@ -68,4 +71,16 @@ export type AddPhotoToGalleryRequest = {
     caption?: string;
     insertAfterPhotoId?: string;
     insertAtStart?: boolean;
+};
+
+export type UpdatePhotoBoardPositionRequest = {
+    boardX: number;
+    boardY: number;
+};
+
+export type UpdatePhotoCaptionsRequest = {
+    captions: Array<{
+        photoId: string;
+        caption: string;
+    }>;
 };

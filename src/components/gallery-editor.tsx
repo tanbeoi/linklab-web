@@ -4,15 +4,18 @@ import Link from "next/link";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/contexts/auth-context";
+import {
+    MOODBOARD_CARD_WIDTH,
+    MoodboardBoard,
+} from "@/components/moodboard-board";
 import { apiRequest } from "@/lib/api";
 import {
     galleryPurposeLabels,
-    type AddPhotoToGalleryRequest,
-    type CreatePhotoUploadUrlRequest,
-    type CreatePhotoUploadUrlResponse,
     type Gallery,
     type GalleryPurpose,
     type Photo,
+    type UpdatePhotoCaptionsRequest,
+    type UpdatePhotoBoardPositionRequest,
     type UpdateGalleryCollabPostRequest,
     type UpdateGalleryRequest,
 } from "@/types/galleries";
@@ -31,6 +34,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [gallery, setGallery] = useState<Gallery | null>(null);
     const [photos, setPhotos] = useState<Photo[]>([]);
+    const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({});
     const [collaborations, setCollaborations] = useState<CollaborationOption[]>([]);
     const [insertionPoint, setInsertionPoint] = useState<InsertionPoint>({ insertAtStart: true });
     const [isLoading, setIsLoading] = useState(true);
@@ -67,6 +71,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
 
                 setGallery(galleryData);
                 setPhotos(photoData);
+                setCaptionDrafts({});
                 setCollaborations([...options].map(([id, title]) => ({ id, title })));
             } catch (cause) {
                 if (!cancelled) setError(errorMessage(cause, "Could not load this gallery."));
@@ -79,8 +84,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         return () => { cancelled = true; };
     }, [galleryId]);
 
-    function openFilePicker(point: InsertionPoint) {
-        setInsertionPoint(point);
+    function openFilePicker(point?: InsertionPoint) {
+        setInsertionPoint(point ?? { insertAtStart: true });
         fileInputRef.current?.click();
     }
 
@@ -94,35 +99,22 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         setIsUploading(true);
 
         try {
-            const uploadRequest: CreatePhotoUploadUrlRequest = {
-                fileName: file.name,
-                contentType: file.type,
-            };
-            const upload = await apiRequest<CreatePhotoUploadUrlResponse>(
-                `/api/galleries/${gallery.id}/photos/upload-url`,
-                { method: "POST", body: JSON.stringify(uploadRequest) },
-            );
+            const formData = new FormData();
+            formData.set("file", file);
+            if ("insertAtStart" in insertionPoint) {
+                formData.set("insertAtStart", "true");
+            } else {
+                formData.set("insertAfterPhotoId", insertionPoint.insertAfterPhotoId);
+            }
 
-            const uploadResponse = await fetch(upload.uploadUrl, {
-                method: "PUT",
-                headers: { "Content-Type": file.type },
-                body: file,
-            });
-
-            if (!uploadResponse.ok) throw new Error("The image could not be uploaded to storage.");
-
-            const saved = await apiRequest<Photo>(`/api/galleries/${gallery.id}/photos`, {
+            const saved = await apiRequest<Photo>(`/api/galleries/${gallery.id}/photos/upload`, {
                 method: "POST",
-                body: JSON.stringify({
-                    photoId: upload.photoId,
-                    objectKey: upload.objectKey,
-                    ...("insertAtStart" in insertionPoint
-                        ? { insertAtStart: true }
-                        : { insertAfterPhotoId: insertionPoint.insertAfterPhotoId }),
-                } satisfies AddPhotoToGalleryRequest),
+                body: formData,
             });
 
             setPhotos((current) => {
+                if (gallery.purpose === 1) return [...current, saved];
+
                 const index = "insertAtStart" in insertionPoint
                     ? 0
                     : current.findIndex((photo) => photo.id === insertionPoint.insertAfterPhotoId) + 1;
@@ -131,7 +123,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 return copy;
             });
             setGallery((current) => current ? { ...current, photoCount: current.photoCount + 1 } : current);
-            setNotice("Photo uploaded.");
+            setNotice(gallery.purpose === 1 ? "Photo uploaded to Unsorted." : "Photo uploaded.");
         } catch (cause) {
             setError(errorMessage(cause, "Could not upload the photo."));
         } finally {
@@ -165,6 +157,21 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 });
             }
 
+            const editedCaptions = Object.entries(captionDrafts).map(([photoId, caption]) => ({
+                photoId,
+                caption,
+            }));
+            if (editedCaptions.length > 0) {
+                await apiRequest<void>(`/api/galleries/${gallery.id}/photos/captions`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ captions: editedCaptions } satisfies UpdatePhotoCaptionsRequest),
+                });
+                setPhotos((current) => current.map((photo) =>
+                    photo.id in captionDrafts ? { ...photo, caption: captionDrafts[photo.id].trim() || null } : photo,
+                ));
+                setCaptionDrafts({});
+            }
+
             setGallery((current) => current ? {
                 ...current,
                 ...saved,
@@ -175,7 +182,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
             } : current);
             setSettingsFeedback({
                 type: "success",
-                message: "Gallery settings saved.",
+                message: "Gallery changes saved.",
             });
         } catch (cause) {
             setSettingsFeedback({
@@ -211,6 +218,50 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         }
     }
 
+    async function saveMoodboardPosition(photoId: string, position: { x: number; y: number }) {
+        if (!gallery) return;
+
+        const previousPhotos = photos;
+        const nextZIndex = Math.max(0, ...photos.map((photo) => photo.boardZIndex ?? 0)) + 1;
+
+        setPhotos((current) => current.map((photo) => photo.id === photoId ? {
+            ...photo,
+            boardX: position.x,
+            boardY: position.y,
+            boardZIndex: nextZIndex,
+        } : photo));
+        setError("");
+
+        try {
+            const saved = await apiRequest<Photo>(
+                `/api/galleries/${gallery.id}/photos/${photoId}/board-position`,
+                {
+                    method: "PATCH",
+                    body: JSON.stringify({
+                        boardX: position.x,
+                        boardY: position.y,
+                    } satisfies UpdatePhotoBoardPositionRequest),
+                },
+            );
+            setPhotos((current) => current.map((photo) => photo.id === photoId ? saved : photo));
+        } catch (cause) {
+            setPhotos(previousPhotos);
+            setError(errorMessage(cause, "Could not save the image position."));
+        }
+    }
+
+    function updateCaption(photo: Photo, caption: string) {
+        setCaptionDrafts((current) => {
+            if (caption === (photo.caption ?? "")) {
+                const remaining = { ...current };
+                delete remaining[photo.id];
+                return remaining;
+            }
+
+            return { ...current, [photo.id]: caption };
+        });
+    }
+
     if (isLoading) return <main className="gallery-editor-page flex min-h-full flex-1 bg-slate-100 px-4 py-10 text-slate-600">Loading gallery editor…</main>;
     if (error && !gallery) return <main className="gallery-editor-page flex min-h-full flex-1 bg-slate-100 px-4 py-10"><p role="alert" className="mx-auto max-w-2xl rounded-lg border border-red-200 bg-red-50 p-5 text-red-700">{error}</p></main>;
     if (!gallery || gallery.ownerId !== user?.id) return <main className="gallery-editor-page flex min-h-full flex-1 bg-slate-100 px-4 py-10"><p className="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-5 text-slate-700">You can only edit your own galleries.</p></main>;
@@ -218,7 +269,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     return (
         <main className="gallery-editor-page flex min-h-full flex-1 flex-col bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={uploadPhoto} />
-            <header className="mx-auto mb-6 flex max-w-7xl items-center justify-between gap-4">
+            <header className="mx-auto mb-6 flex w-full max-w-none items-center justify-between gap-4">
                 <div>
                     <p className="text-sm font-medium text-blue-700">Gallery editor</p>
                     <h1 className="text-2xl font-bold sm:text-3xl">{gallery.title}</h1>
@@ -226,22 +277,51 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 <Link href="/galleries/mine" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Done</Link>
             </header>
 
-            {(error || notice) && <p role={error ? "alert" : "status"} className={`mx-auto mb-5 max-w-7xl rounded-lg border p-4 text-sm ${error ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-800"}`}>{error || notice}</p>}
+            {(error || notice) && <p role={error ? "alert" : "status"} className={`mx-auto mb-5 w-full max-w-none rounded-lg border p-4 text-sm ${error ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-800"}`}>{error || notice}</p>}
 
-            <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
-                <section aria-label="Gallery photos" className="overflow-hidden rounded-lg bg-white shadow-sm">
-                    <InsertPhotoButton label="Add your first photo" isUploading={isUploading} onClick={() => openFilePicker({ insertAtStart: true })} />
-                    {photos.map((photo) => (
-                        <div key={photo.id}>
-                            <figure>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={photo.imageUrl} alt={photo.caption || "Gallery photograph"} className="block h-auto w-full" />
-                                <figcaption className="border-t border-slate-100 px-5 py-3 text-sm text-slate-500">{photo.caption || "No caption"}</figcaption>
-                            </figure>
-                            <InsertPhotoButton label="Upload photo here" isUploading={isUploading} onClick={() => openFilePicker({ insertAfterPhotoId: photo.id })} />
-                        </div>
-                    ))}
-                </section>
+            <div className={`mx-auto grid w-full max-w-none gap-6 ${gallery.purpose === 1 ? "xl:grid-cols-[15rem_minmax(0,1fr)_22rem]" : "xl:grid-cols-[minmax(0,1fr)_22rem]"} xl:items-start`}>
+                {gallery.purpose === 1 && <UnsortedTray
+                    photos={photos.filter((photo) => photo.boardX === null || photo.boardY === null)}
+                    isUploading={isUploading}
+                    onUpload={() => openFilePicker()}
+                    onPlace={(photoId, position) => { void saveMoodboardPosition(photoId, position); }}
+                />}
+
+                {gallery.purpose === 1 ? (
+                    <MoodboardBoard
+                        photos={photos}
+                        editable
+                        captionDrafts={captionDrafts}
+                        onPositionChange={(photoId, position) => { void saveMoodboardPosition(photoId, position); }}
+                        onUnsortedDrop={(photoId, position) => { void saveMoodboardPosition(photoId, position); }}
+                        onCaptionChange={updateCaption}
+                    />
+                ) : (
+                    <section aria-label="Gallery photos" className="overflow-hidden rounded-lg bg-white shadow-sm">
+                        <InsertPhotoButton label="Add your first photo" isUploading={isUploading} onClick={() => openFilePicker({ insertAtStart: true })} />
+                        {photos.map((photo) => (
+                            <div key={photo.id}>
+                                <figure>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={photo.imageUrl} alt={photo.caption || "Gallery photograph"} className="block h-auto w-full" />
+                                    <figcaption className="border-t border-slate-100 px-5 py-3">
+                                        <label className="block text-xs font-medium text-slate-500" htmlFor={`photo-caption-${photo.id}`}>Caption</label>
+                                        <textarea
+                                            id={`photo-caption-${photo.id}`}
+                                            value={captionDrafts[photo.id] ?? photo.caption ?? ""}
+                                            onChange={(event) => updateCaption(photo, event.target.value)}
+                                            maxLength={1000}
+                                            rows={2}
+                                            placeholder="Click to add a caption"
+                                            className="mt-1.5 block w-full resize-y rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm text-slate-600 outline-none transition placeholder:text-slate-400 hover:border-slate-200 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                                        />
+                                    </figcaption>
+                                </figure>
+                                <InsertPhotoButton label="Upload photo here" isUploading={isUploading} onClick={() => openFilePicker({ insertAfterPhotoId: photo.id })} />
+                            </div>
+                        ))}
+                    </section>
+                )}
 
                 <aside className="lg:sticky lg:top-5">
                     <form action={saveDetails} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -266,7 +346,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                         >
                             {settingsFeedback.message}
                         </p>}
-                        <button type="submit" disabled={isSaving} className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving…" : "Save settings"}</button>
+                        {Object.keys(captionDrafts).length > 0 && <p className="mt-4 text-xs text-amber-700">You have unsaved photo caption changes.</p>}
+                        <button type="submit" disabled={isSaving} className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving changes…" : "Save changes"}</button>
                     </form>
 
                     <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -285,4 +366,64 @@ function InsertPhotoButton({ label, isUploading, onClick }: { label: string; isU
     return <div className="group relative flex min-h-8 items-center justify-center bg-slate-50 py-1.5">
         <button type="button" disabled={isUploading} onClick={onClick} className="rounded-md border border-dashed border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 opacity-100 transition hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100">{isUploading ? "Uploading…" : `＋ ${label}`}</button>
     </div>;
+}
+
+function UnsortedTray({
+    photos,
+    isUploading,
+    onUpload,
+    onPlace,
+}: {
+    photos: Photo[];
+    isUploading: boolean;
+    onUpload: () => void;
+    onPlace: (photoId: string, position: { x: number; y: number }) => void;
+}) {
+    return (
+        <aside className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-5 xl:max-h-[calc(100dvh-4rem)] xl:overflow-y-auto">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <h2 className="font-semibold">Unsorted</h2>
+                    <p className="mt-1 text-xs text-slate-500">Drag an image onto the board.</p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{photos.length}</span>
+            </div>
+            <button type="button" disabled={isUploading} onClick={onUpload} className="mt-4 w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400">
+                {isUploading ? "Uploading…" : "＋ Upload image"}
+            </button>
+            {photos.length === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-500">Uploaded images will appear here until you place them on the board.</p>
+            ) : (
+                <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-1">
+                    {photos.map((photo, index) => (
+                        <div
+                            key={photo.id}
+                            draggable
+                            onDragStart={(event) => {
+                                event.dataTransfer.effectAllowed = "move";
+                                event.dataTransfer.setData("application/x-linklab-photo", photo.id);
+                            }}
+                            className="cursor-grab overflow-hidden rounded-md border border-slate-200 bg-slate-50 active:cursor-grabbing"
+                        >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={photo.imageUrl} alt={photo.caption || "Unsorted moodboard image"} draggable={false} className="block h-auto w-full" />
+                            <div className="flex items-center justify-between gap-2 p-2">
+                                <span className="min-w-0 truncate text-xs text-slate-500">{photo.caption || "Untitled image"}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => onPlace(photo.id, {
+                                        x: 120 + (index % 5) * (MOODBOARD_CARD_WIDTH + 30),
+                                        y: 120 + Math.floor(index / 5) * 280,
+                                    })}
+                                    className="shrink-0 text-xs font-medium text-blue-700 hover:underline"
+                                >
+                                    Place
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </aside>
+    );
 }
