@@ -1,6 +1,6 @@
 "use client";
 
-import { DragEvent, PointerEvent, useRef, useState } from "react";
+import { DragEvent, MouseEvent, PointerEvent, useEffect, useRef, useState } from "react";
 
 import type { Photo } from "@/types/galleries";
 
@@ -51,6 +51,7 @@ type MoodboardBoardProps = {
     onLayoutChange?: (photoId: string, layout: MoodboardLayout) => void;
     onUnsortedDrop?: (photoId: string, layout: MoodboardLayout) => void;
     onCaptionChange?: (photo: Photo, caption: string) => void;
+    onDeletePhoto?: (photo: Photo) => void;
 };
 
 function isPlaced(photo: Photo) {
@@ -110,14 +111,41 @@ export function MoodboardBoard({
     onLayoutChange,
     onUnsortedDrop,
     onCaptionChange,
+    onDeletePhoto,
 }: MoodboardBoardProps) {
     const boardRef = useRef<HTMLDivElement>(null);
     const [interaction, setInteraction] = useState<BoardInteraction | null>(null);
     const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
+    const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 
     const placedPhotos = photos
         .filter(isPlaced)
         .sort((a, b) => (a.boardZIndex ?? 0) - (b.boardZIndex ?? 0));
+
+    useEffect(() => {
+        if (!editable || !selectedPhotoId || !onDeletePhoto) return;
+
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key !== "Delete" && event.key !== "Backspace") return;
+
+            const target = event.target;
+            if (target instanceof HTMLElement && (
+                target.isContentEditable ||
+                target.tagName === "INPUT" ||
+                target.tagName === "TEXTAREA" ||
+                target.tagName === "SELECT"
+            )) return;
+
+            const photo = photos.find((candidate) => candidate.id === selectedPhotoId);
+            if (!photo) return;
+
+            event.preventDefault();
+            onDeletePhoto?.(photo);
+        }
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [editable, onDeletePhoto, photos, selectedPhotoId]);
 
     function positionFromPointer(clientX: number, clientY: number, offsetX = 0, offsetY = 0, width = MOODBOARD_CARD_WIDTH) {
         const rect = boardRef.current?.getBoundingClientRect();
@@ -133,6 +161,7 @@ export function MoodboardBoard({
         if (!editable || event.button !== 0 || !isPlaced(photo)) return;
 
         event.preventDefault();
+        setSelectedPhotoId(photo.id);
         const photoRect = event.currentTarget.getBoundingClientRect();
         event.currentTarget.setPointerCapture(event.pointerId);
         const layout = getLayout(photo);
@@ -150,6 +179,7 @@ export function MoodboardBoard({
 
         event.preventDefault();
         event.stopPropagation();
+        setSelectedPhotoId(photo.id);
         event.currentTarget.setPointerCapture(event.pointerId);
         const layout = getLayout(photo);
         setInteraction({
@@ -169,6 +199,7 @@ export function MoodboardBoard({
 
         event.preventDefault();
         event.stopPropagation();
+        setSelectedPhotoId(photo.id);
         event.currentTarget.setPointerCapture(event.pointerId);
         const layout = getLayout(photo);
         setInteraction({
@@ -252,6 +283,12 @@ export function MoodboardBoard({
         if (photoId && photo && position) onUnsortedDrop?.(photoId, getLayout(photo, position));
     }
 
+    function deleteSelectedPhoto(event: MouseEvent<HTMLButtonElement>, photo: Photo) {
+        event.preventDefault();
+        event.stopPropagation();
+        onDeletePhoto?.(photo);
+    }
+
     function saveAspectRatio(photo: Photo, image: HTMLImageElement) {
         if (image.naturalWidth === 0 || image.naturalHeight === 0) return;
         const aspectRatio = image.naturalWidth / image.naturalHeight;
@@ -273,6 +310,9 @@ export function MoodboardBoard({
                 onPointerMove={moveInteraction}
                 onPointerUp={finishInteraction}
                 onPointerCancel={finishInteraction}
+                onPointerDown={(event) => {
+                    if (event.target === event.currentTarget) setSelectedPhotoId(null);
+                }}
                 onDragOver={(event) => { if (editable) event.preventDefault(); }}
                 onDrop={dropUnsortedPhoto}
             >
@@ -286,12 +326,13 @@ export function MoodboardBoard({
                         ? interaction.layout
                         : getLayout(photo);
                     const isActive = interaction?.photoId === photo.id;
+                    const isSelected = selectedPhotoId === photo.id;
                     const caption = captionDrafts[photo.id] ?? photo.caption ?? "";
 
                     return (
                         <div
                             key={photo.id}
-                            className="group absolute rounded-sm bg-white shadow-lg ring-1 ring-black/10"
+                            className={`group absolute rounded-sm bg-white shadow-lg ring-1 ring-black/10 ${isSelected ? "ring-2 ring-blue-500" : ""}`}
                             style={{
                                 left: layout.x,
                                 top: layout.y,
@@ -316,6 +357,17 @@ export function MoodboardBoard({
                                             className="block h-auto w-full"
                                         />
                                     </button>
+                                    {editable && isSelected && (
+                                        <button
+                                            type="button"
+                                            aria-label={`Delete ${caption || "moodboard image"}`}
+                                            title="Delete photo"
+                                            onClick={(event) => deleteSelectedPhoto(event, photo)}
+                                            className="absolute right-2 top-2 z-30 flex size-6 items-center justify-center rounded-full bg-white/85 text-base leading-none text-slate-500 shadow-sm backdrop-blur-sm transition hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                                        >
+                                            <span aria-hidden="true">×</span>
+                                        </button>
+                                    )}
                                     {editable && ([
                                         ["north-west", "-left-1.5 -top-1.5 cursor-nwse-resize"],
                                         ["north-east", "-right-1.5 -top-1.5 cursor-nesw-resize"],
@@ -327,17 +379,17 @@ export function MoodboardBoard({
                                             type="button"
                                             aria-label={`Resize image from the ${handle.replace("-", " ")} corner`}
                                             onPointerDown={(event) => beginImageResize(event, photo, handle)}
-                                            className={`absolute z-20 size-3 rounded-full border-2 border-white bg-blue-600 shadow-sm opacity-0 transition group-hover:opacity-100 focus:opacity-100 ${classes}`}
+                                            className={`absolute z-20 size-3 rounded-full border-2 border-white bg-blue-600 shadow-sm transition ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100"} ${classes}`}
                                         />
                                     ))}
                                 </div>
                                 {editable ? (
-                                    <div className="relative border-t border-slate-100">
+                                    <div className="relative border-t border-slate-100" onPointerDown={() => setSelectedPhotoId(photo.id)}>
                                         <button
                                             type="button"
                                             aria-label="Resize caption area"
                                             onPointerDown={(event) => beginCaptionResize(event, photo)}
-                                            className="absolute -top-1.5 left-0 z-10 flex h-3 w-full cursor-ns-resize items-center justify-center opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+                                            className={`absolute -top-1.5 left-0 z-10 flex h-3 w-full cursor-ns-resize items-center justify-center transition ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
                                         >
                                             <span className="h-1 w-10 rounded-full bg-slate-400 shadow-sm" />
                                         </button>

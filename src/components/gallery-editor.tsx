@@ -42,6 +42,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
     const [isPublishing, setIsPublishing] = useState(false);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
@@ -268,6 +269,39 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         });
     }
 
+    async function deleteMoodboardPhoto(photo: Photo) {
+        if (!gallery || deletingPhotoId) return;
+
+        const previousPhotos = photos;
+        const previousDrafts = captionDrafts;
+        setDeletingPhotoId(photo.id);
+        setError("");
+        setNotice("");
+        setPhotos((current) => current.filter((candidate) => candidate.id !== photo.id));
+        setCaptionDrafts((current) => {
+            const remaining = { ...current };
+            delete remaining[photo.id];
+            return remaining;
+        });
+
+        try {
+            await apiRequest<void>(`/api/galleries/${gallery.id}/photos/${photo.id}`, {
+                method: "DELETE",
+            });
+            setGallery((current) => current ? {
+                ...current,
+                photoCount: Math.max(0, current.photoCount - 1),
+            } : current);
+            setNotice("Photo deleted.");
+        } catch (cause) {
+            setPhotos(previousPhotos);
+            setCaptionDrafts(previousDrafts);
+            setError(errorMessage(cause, "Could not delete the photo."));
+        } finally {
+            setDeletingPhotoId(null);
+        }
+    }
+
     if (isLoading) return <main className="gallery-editor-page flex min-h-full flex-1 bg-slate-100 px-4 py-10 text-slate-600">Loading gallery editor…</main>;
     if (error && !gallery) return <main className="gallery-editor-page flex min-h-full flex-1 bg-slate-100 px-4 py-10"><p role="alert" className="mx-auto max-w-2xl rounded-lg border border-red-200 bg-red-50 p-5 text-red-700">{error}</p></main>;
     if (!gallery || gallery.ownerId !== user?.id) return <main className="gallery-editor-page flex min-h-full flex-1 bg-slate-100 px-4 py-10"><p className="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-5 text-slate-700">You can only edit your own galleries.</p></main>;
@@ -301,6 +335,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                         onLayoutChange={(photoId, layout) => { void saveMoodboardLayout(photoId, layout); }}
                         onUnsortedDrop={(photoId, layout) => { void saveMoodboardLayout(photoId, layout); }}
                         onCaptionChange={updateCaption}
+                        onDeletePhoto={(photo) => { void deleteMoodboardPhoto(photo); }}
                     />
                 ) : (
                     <section aria-label="Gallery photos" className="overflow-hidden rounded-lg bg-white shadow-sm">
