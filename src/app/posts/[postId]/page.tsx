@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-import { GalleryViewer } from "@/components/gallery-viewer";
+import { GalleryViewer, type GalleryViewerSource } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
@@ -16,7 +16,7 @@ export default function PostPage() {
     const [post, setPost] = useState<CollabPost | null>(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
-    const [viewingMoodboard, setViewingMoodboard] = useState(false);
+    const [viewingGallery, setViewingGallery] = useState<GalleryViewerSource | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -62,26 +62,26 @@ export default function PostPage() {
                 </div>
             </header>
 
-            {previewImages.length > 0 && <section className="mt-6 rounded-2xl border border-violet-200 bg-violet-50/60 p-5 shadow-sm sm:p-6">
+            {previewImages.length > 0 && <section role="button" tabIndex={0} onClick={() => setViewingGallery({ postId: post.id })} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setViewingGallery({ postId: post.id }); } }} className="mt-6 cursor-pointer rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-violet-700 sm:p-6">
                 <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">Creative direction</p><h2 className="mt-1 text-2xl font-semibold">Moodboard for this collaboration</h2><p className="mt-2 text-slate-600">Open the moodboard to see the full creative direction.</p></div>
                 <div className={`mt-5 grid gap-3 ${previewImages.length === 1 ? "grid-cols-1" : previewImages.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
-                    {previewImages.map((imageUrl, index) => <button type="button" key={imageUrl} onClick={() => setViewingMoodboard(true)} aria-label={`Open moodboard for ${post.title}`} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-slate-100 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-violet-700">
+                    {previewImages.map((imageUrl, index) => <div key={imageUrl} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-slate-100 shadow-sm">
                         <MoodboardThumbnail src={imageUrl} alt={`Moodboard image ${index + 1} for ${post.title}`} />
                         {index === 2 && remainingImageCount > 0 && <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-2xl font-semibold text-white">+{remainingImageCount}</span>}
-                    </button>)}
+                    </div>)}
                 </div>
             </section>}
 
             {portfolios.length > 0 && <section className="mt-6 overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-5 shadow-sm sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Project outcomes</p><h2 className="mt-1 text-2xl font-semibold">Work created from this collaboration</h2><p className="mt-2 text-slate-600">See how the shared idea became finished work.</p></div><span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-blue-700 shadow-sm">{portfolios.length} portfolio{portfolios.length === 1 ? "" : "s"}</span></div>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                    {portfolios.map((portfolio) => <Link key={portfolio.id} href={`/galleries/${portfolio.id}`} className="group overflow-hidden rounded-xl border border-white bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600">
+                    {portfolios.map((portfolio) => <button type="button" key={portfolio.id} onClick={() => setViewingGallery({ galleryId: portfolio.id })} className="group overflow-hidden rounded-xl border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600">
                         <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">{portfolio.previewImageUrl ? <MoodboardThumbnail src={portfolio.previewImageUrl} alt={`Preview of ${portfolio.title}`} /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Portfolio gallery</div>}</div>
                         <div className="p-4"><div className="flex items-center justify-between gap-2"><h3 className="truncate font-semibold group-hover:text-blue-700">{portfolio.title}</h3><span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Portfolio</span></div><p className="mt-1 text-sm text-slate-600">By {portfolio.ownerDisplayName}</p></div>
-                    </Link>)}
+                    </button>)}
                 </div>
             </section>}
         </article>
-        {viewingMoodboard && <GalleryViewer source={{ postId: post.id }} onClose={() => setViewingMoodboard(false)} />}
+        {viewingGallery && <GalleryViewer source={viewingGallery} onClose={() => setViewingGallery(null)} />}
     </main>;
 }

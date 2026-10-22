@@ -23,11 +23,11 @@ function shortenExcerpt(description: string) {
 
 export function CollaborationOrigin({ gallery }: CollaborationOriginProps) {
     const [post, setPost] = useState<CollabPost | null>(null);
-    const isLinkedPortfolio =
-        gallery.purpose === 0 && Boolean(gallery.collabPostId);
+    const isLinkedGallery = Boolean(gallery.collabPostId);
+    const isMoodboard = gallery.purpose === 1;
 
     useEffect(() => {
-        if (!isLinkedPortfolio || !gallery.collabPostId) {
+        if (!isLinkedGallery || !gallery.collabPostId) {
             return;
         }
 
@@ -49,21 +49,33 @@ export function CollaborationOrigin({ gallery }: CollaborationOriginProps) {
 
         void loadPost();
         return () => controller.abort();
-    }, [gallery.collabPostId, isLinkedPortfolio]);
+    }, [gallery.collabPostId, isLinkedGallery]);
 
-    if (!isLinkedPortfolio || !gallery.collabPostId) {
+    if (!isLinkedGallery || !gallery.collabPostId) {
         return null;
     }
 
     const postTitle = post?.title ?? gallery.collabPostTitle ?? "Linked collaboration";
+    const label = isMoodboard
+        ? "Creative direction for this collaboration"
+        : "Collaboration origin";
+    const ownerContext = isMoodboard
+        ? "Moodboard linked to this collaboration"
+        : `Portfolio by ${gallery.ownerDisplayName || "the gallery owner"}`;
+    const panelClasses = isMoodboard
+        ? "border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 shadow-violet-950/10"
+        : "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 shadow-blue-950/10";
+    const accentClasses = isMoodboard ? "text-violet-700" : "text-blue-700";
+    const orbClasses = isMoodboard ? "bg-violet-200/50" : "bg-blue-200/50";
+    const buttonClasses = isMoodboard
+        ? "bg-violet-800 hover:bg-violet-700 focus-visible:outline-violet-700"
+        : "bg-slate-950 hover:bg-blue-700 focus-visible:outline-blue-600";
 
     return (
-        <section className="relative overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-5 text-slate-900 shadow-lg shadow-blue-950/10 sm:p-6">
-            <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-blue-200/50 blur-2xl" />
+        <section className={`relative overflow-hidden rounded-2xl border p-5 text-slate-900 shadow-lg sm:p-6 ${panelClasses}`}>
+            <div className={`absolute -right-12 -top-12 h-36 w-36 rounded-full blur-2xl ${orbClasses}`} />
             <div className="relative">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
-                    Collaboration origin
-                </p>
+                <p className={`text-xs font-bold uppercase tracking-[0.18em] ${accentClasses}`}>{label}</p>
                 <h2 className="mt-2 max-w-3xl text-xl font-semibold tracking-tight sm:text-2xl">
                     {postTitle}
                 </h2>
@@ -74,11 +86,11 @@ export function CollaborationOrigin({ gallery }: CollaborationOriginProps) {
                 )}
                 <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
                     <span>{post?.isRemote ? "Remote collaboration" : post?.location ?? "Collaboration project"}</span>
-                    <span>Portfolio by {gallery.ownerDisplayName || "the gallery owner"}</span>
+                    <span>{ownerContext}</span>
                 </div>
                 <Link
                     href={`/posts/${gallery.collabPostId}`}
-                    className="mt-5 inline-flex items-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    className={`mt-5 inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 ${buttonClasses}`}
                 >
                     View collaboration →
                 </Link>

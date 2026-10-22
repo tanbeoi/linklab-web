@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/api";
 import { CollabPost, PagedResponse } from "@/types/posts";
 import { ApplicationForm } from "@/components/application-form";
 import { useAuth } from "@/contexts/auth-context";
-import { GalleryViewer } from "@/components/gallery-viewer";
+import { GalleryViewer, type GalleryViewerSource } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,7 +37,7 @@ export default function ListPostsPage() {
     const [pageSize, setPageSize] = useState(10);
     const [postsResponse, setPostsResponse] = useState<PagedResponse<CollabPost> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [viewingMoodboard, setViewingMoodboard] = useState<{ postId: string } | null>(null);
+    const [viewingGallery, setViewingGallery] = useState<GalleryViewerSource | null>(null);
     const [selectedPost, setSelectedPost] = useState<CollabPost | null>(null);
 
     function markPostAsApplied(postId: string) {
@@ -214,12 +214,24 @@ export default function ListPostsPage() {
                                                     </p>
 
                                                     {previewImages.length > 0 && (
-                                                        <section className="mt-5">
-                                                            <div className="mb-2 flex items-center gap-2">
+                                                        <section
+                                                            role="button"
+                                                            tabIndex={0}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                setViewingGallery({ postId: post.id });
+                                                            }}
+                                                            onKeyDown={(event) => {
+                                                                if (event.key !== "Enter" && event.key !== " ") return;
+                                                                event.preventDefault();
+                                                                event.stopPropagation();
+                                                                setViewingGallery({ postId: post.id });
+                                                            }}
+                                                            className="mt-5 cursor-pointer rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-violet-700"
+                                                        >
+                                                            <div className="mb-3 flex items-center gap-2">
                                                                 <span className="h-px w-5 bg-violet-300" />
-                                                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">
-                                                                    Creative direction
-                                                                </p>
+                                                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">Creative direction</p>
                                                             </div>
                                                             <div
                                                                 className={`grid gap-2 ${
@@ -240,7 +252,7 @@ export default function ListPostsPage() {
                                                                         type="button"
                                                                         key={imageUrl}
                                                                         aria-label={`View moodboard for ${post.title}`}
-                                                                        onClick={(event) => { event.stopPropagation(); setViewingMoodboard({ postId: post.id }); }}
+                                                                        onClick={(event) => { event.stopPropagation(); setViewingGallery({ postId: post.id }); }}
                                                                         className="relative aspect-[4/3] min-w-0 overflow-hidden rounded-md bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600"
                                                                     >
                                                                         <MoodboardThumbnail
@@ -269,14 +281,14 @@ export default function ListPostsPage() {
                                                             onClick={(event) => {
                                                                 event.stopPropagation();
                                                                 if (solePortfolio) {
-                                                                    router.push(`/galleries/${solePortfolio.id}`);
+                                                                    setViewingGallery({ galleryId: solePortfolio.id });
                                                                 }
                                                             }}
                                                             onKeyDown={(event) => {
                                                                 if (!solePortfolio || (event.key !== "Enter" && event.key !== " ")) return;
                                                                 event.preventDefault();
                                                                 event.stopPropagation();
-                                                                router.push(`/galleries/${solePortfolio.id}`);
+                                                                setViewingGallery({ galleryId: solePortfolio.id });
                                                             }}
                                                             className={`mt-5 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-4 shadow-sm ${solePortfolio ? "cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600" : ""}`}
                                                         >
@@ -298,11 +310,11 @@ export default function ListPostsPage() {
                                                             </div>
                                                             <div className="mt-4 grid gap-3 sm:grid-cols-2">
                                                                 {portfolioGalleries.map((portfolio) => (
-                                                                    <Link
+                                                                    <button
+                                                                        type="button"
                                                                         key={portfolio.id}
-                                                                        href={`/galleries/${portfolio.id}`}
-                                                                        onClick={(event) => event.stopPropagation()}
-                                                                        className="group overflow-hidden rounded-lg border border-white bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600"
+                                                                        onClick={(event) => { event.stopPropagation(); setViewingGallery({ galleryId: portfolio.id }); }}
+                                                                        className="group overflow-hidden rounded-lg border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600"
                                                                     >
                                                                         <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
                                                                             {portfolio.previewImageUrl ? (
@@ -329,7 +341,7 @@ export default function ListPostsPage() {
                                                                                 By {portfolio.ownerDisplayName}
                                                                             </p>
                                                                         </div>
-                                                                    </Link>
+                                                                    </button>
                                                                 ))}
                                                             </div>
                                                         </section>
@@ -518,7 +530,7 @@ export default function ListPostsPage() {
                     </div>
                 </aside>
             )}
-            {viewingMoodboard && <GalleryViewer source={viewingMoodboard} onClose={() => setViewingMoodboard(null)} />}
+            {viewingGallery && <GalleryViewer source={viewingGallery} onClose={() => setViewingGallery(null)} />}
         </main>
     );
 }

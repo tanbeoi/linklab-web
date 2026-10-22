@@ -8,7 +8,10 @@ import { MoodboardComposition } from "@/components/moodboard-board";
 import { CollaborationOrigin } from "@/components/collaboration-origin";
 import type { Gallery, Photo } from "@/types/galleries";
 
-export type GalleryViewerSource = { gallery: Gallery } | { postId: string };
+export type GalleryViewerSource =
+    | { gallery: Gallery }
+    | { galleryId: string }
+    | { postId: string };
 
 function GalleryPhoto({ photo }: { photo: Photo }) {
     const [failed, setFailed] = useState(false);
@@ -58,8 +61,11 @@ export function GalleryViewer({ source, onClose }: {
         const controller = new AbortController();
         async function load() {
             try {
-                const gallery = "gallery" in source ? source.gallery
-                    : await apiRequest<Gallery>(`/api/posts/${source.postId}/moodboard`, { signal: controller.signal });
+                const gallery = "gallery" in source
+                    ? source.gallery
+                    : "galleryId" in source
+                        ? await apiRequest<Gallery>(`/api/galleries/${source.galleryId}`, { signal: controller.signal })
+                        : await apiRequest<Gallery>(`/api/posts/${source.postId}/moodboard`, { signal: controller.signal });
                 const photos = await apiRequest<Photo[]>(`/api/galleries/${gallery.id}/photos`, { signal: controller.signal });
                 if (!controller.signal.aborted) setContent({ gallery, photos });
             } catch (cause) {

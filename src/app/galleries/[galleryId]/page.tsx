@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -36,8 +35,7 @@ export default function PublicGalleryPage() {
 
     return <main className="public-gallery-page flex min-h-full flex-1 flex-col bg-slate-950 px-4 py-10 text-white sm:px-6">
         <article className="mx-auto w-full max-w-5xl">
-            <Link href="/galleries" className="text-sm text-slate-300 hover:text-white">← Public Galleries</Link>
-            <header className="mt-6 mb-8">
+            <header className="mb-8">
                 <p className="text-xs font-medium uppercase tracking-widest text-slate-300">{content.gallery.purpose === 1 ? "Moodboard" : "Portfolio"}</p>
                 <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">{content.gallery.title}</h1>
                 <p className="mt-3 text-slate-300">By {content.gallery.ownerDisplayName}</p>
