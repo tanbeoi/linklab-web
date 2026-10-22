@@ -16,6 +16,9 @@ import {
     type Gallery,
     type GalleryPurpose,
     type Photo,
+    type AddPhotoToGalleryRequest,
+    type CreatePhotoUploadUrlRequest,
+    type CreatePhotoUploadUrlResponse,
     type UpdatePhotoCaptionsRequest,
     type UpdatePhotoBoardPositionRequest,
     type UpdateGalleryCollabPostRequest,
@@ -26,6 +29,9 @@ import type { CollabPost, MyApplication, PagedResponse } from "@/types/posts";
 type InsertionPoint = { insertAtStart: true } | { insertAfterPhotoId: string };
 
 type CollaborationOption = { id: string; title: string };
+
+const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
 function errorMessage(error: unknown, fallback: string) {
     return error instanceof Error ? error.message : fallback;
@@ -101,22 +107,56 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         event.target.value = "";
         if (!file || !gallery) return;
 
+        if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+            setError("Choose a JPEG, PNG, or WebP image.");
+            return;
+        }
+
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
+            setError("Choose an image smaller than 10 MB.");
+            return;
+        }
+
         setError("");
         setNotice("");
         setIsUploading(true);
 
         try {
-            const formData = new FormData();
-            formData.set("file", file);
-            if ("insertAtStart" in insertionPoint) {
-                formData.set("insertAtStart", "true");
-            } else {
-                formData.set("insertAfterPhotoId", insertionPoint.insertAfterPhotoId);
+            const uploadRequest: CreatePhotoUploadUrlRequest = {
+                fileName: file.name,
+                contentType: file.type,
+            };
+            const uploadDetails = await apiRequest<CreatePhotoUploadUrlResponse>(`/api/galleries/${gallery.id}/photos/upload-url`, {
+                method: "POST",
+                body: JSON.stringify(uploadRequest),
+            });
+
+            // This request goes straight from the browser to S3. It deliberately
+            // does not use apiRequest, which would attach the LinkLab API token.
+            const s3Response = await fetch(uploadDetails.uploadUrl, {
+                method: "PUT",
+                headers: { "Content-Type": file.type },
+                body: file,
+            });
+
+            if (!s3Response.ok) {
+                throw new Error("S3 could not upload this image. Please try again.");
             }
 
-            const saved = await apiRequest<Photo>(`/api/galleries/${gallery.id}/photos/upload`, {
+            const addPhotoRequest: AddPhotoToGalleryRequest = {
+                photoId: uploadDetails.photoId,
+                objectKey: uploadDetails.objectKey,
+            };
+
+            if ("insertAtStart" in insertionPoint) {
+                addPhotoRequest.insertAtStart = true;
+            } else {
+                addPhotoRequest.insertAfterPhotoId = insertionPoint.insertAfterPhotoId;
+            }
+
+            const saved = await apiRequest<Photo>(`/api/galleries/${gallery.id}/photos`, {
                 method: "POST",
-                body: formData,
+                body: JSON.stringify(addPhotoRequest),
             });
 
             setPhotos((current) => {
@@ -273,7 +313,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         });
     }
 
-    async function deleteMoodboardPhoto(photo: Photo) {
+    async function deletePhoto(photo: Photo) {
         if (!gallery || deletingPhotoId) return;
 
         const previousPhotos = photos;
@@ -355,8 +395,10 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 {gallery.purpose === 1 && <UnsortedTray
                     photos={photos.filter((photo) => photo.boardX === null || photo.boardY === null)}
                     isUploading={isUploading}
+                    deletingPhotoId={deletingPhotoId}
                     onUpload={() => openFilePicker()}
                     onPlace={(photoId, position) => { void saveMoodboardLayout(photoId, position); }}
+                    onDelete={(photo) => { void deletePhoto(photo); }}
                 />}
 
                 {gallery.purpose === 1 ? (
@@ -367,18 +409,38 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                         onLayoutChange={(photoId, layout) => { void saveMoodboardLayout(photoId, layout); }}
                         onUnsortedDrop={(photoId, layout) => { void saveMoodboardLayout(photoId, layout); }}
                         onCaptionChange={updateCaption}
-                        onDeletePhoto={(photo) => { void deleteMoodboardPhoto(photo); }}
+                        onDeletePhoto={(photo) => { void deletePhoto(photo); }}
                     />
                 ) : (
                     <section aria-label="Gallery photos" className="overflow-hidden rounded-lg bg-white shadow-sm">
                         <InsertPhotoButton label="Add your first photo" isUploading={isUploading} onClick={() => openFilePicker({ insertAtStart: true })} />
                         {photos.map((photo) => (
                             <div key={photo.id}>
-                                <figure>
+                                <figure className="relative">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={photo.imageUrl} alt={photo.caption || "Gallery photograph"} className="block h-auto w-full" />
+                                    <button
+                                        type="button"
+                                        disabled={deletingPhotoId !== null}
+                                        aria-label={`Delete ${photo.caption || "portfolio image"}`}
+                                        title="Delete photo"
+                                        onClick={() => { void deletePhoto(photo); }}
+                                        className="absolute right-3 top-3 z-10 flex size-6 items-center justify-center rounded-full bg-white/85 text-base leading-none text-slate-500 shadow-sm backdrop-blur-sm transition hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <span aria-hidden="true">×</span>
+                                    </button>
                                     <figcaption className="border-t border-slate-100 px-5 py-3">
-                                        <label className="block text-xs font-medium text-slate-500" htmlFor={`photo-caption-${photo.id}`}>Caption</label>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <label className="block text-xs font-medium text-slate-500" htmlFor={`photo-caption-${photo.id}`}>Caption</label>
+                                            <button
+                                                type="button"
+                                                disabled={deletingPhotoId !== null}
+                                                onClick={() => { void deletePhoto(photo); }}
+                                                className="text-xs font-medium text-slate-500 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {deletingPhotoId === photo.id ? "Deleting…" : "Delete photo"}
+                                            </button>
+                                        </div>
                                         <textarea
                                             id={`photo-caption-${photo.id}`}
                                             value={captionDrafts[photo.id] ?? photo.caption ?? ""}
@@ -457,13 +519,17 @@ function InsertPhotoButton({ label, isUploading, onClick }: { label: string; isU
 function UnsortedTray({
     photos,
     isUploading,
+    deletingPhotoId,
     onUpload,
     onPlace,
+    onDelete,
 }: {
     photos: Photo[];
     isUploading: boolean;
+    deletingPhotoId: string | null;
     onUpload: () => void;
     onPlace: (photoId: string, layout: MoodboardLayout) => void;
+    onDelete: (photo: Photo) => void;
 }) {
     return (
         <aside className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-5 xl:max-h-[calc(100dvh-4rem)] xl:overflow-y-auto">
@@ -495,18 +561,29 @@ function UnsortedTray({
                             <img src={photo.imageUrl} alt={photo.caption || "Unsorted moodboard image"} draggable={false} className="block h-auto w-full" />
                             <div className="flex items-center justify-between gap-2 p-2">
                                 <span className="min-w-0 truncate text-xs text-slate-500">{photo.caption || "Untitled image"}</span>
-                                <button
-                                    type="button"
-                                    onClick={() => onPlace(photo.id, {
-                                        x: 120 + (index % 5) * (MOODBOARD_CARD_WIDTH + 30),
-                                        y: 120 + Math.floor(index / 5) * 280,
-                                        width: MOODBOARD_CARD_WIDTH,
-                                        captionHeight: MOODBOARD_CAPTION_HEIGHT,
-                                    })}
-                                    className="shrink-0 text-xs font-medium text-blue-700 hover:underline"
-                                >
-                                    Place
-                                </button>
+                                <div className="flex shrink-0 items-center gap-2">
+                                    <button
+                                        type="button"
+                                        disabled={deletingPhotoId !== null}
+                                        onClick={() => onDelete(photo)}
+                                        className="text-xs font-medium text-slate-500 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {deletingPhotoId === photo.id ? "Deleting…" : "Delete"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={deletingPhotoId !== null}
+                                        onClick={() => onPlace(photo.id, {
+                                            x: 120 + (index % 5) * (MOODBOARD_CARD_WIDTH + 30),
+                                            y: 120 + Math.floor(index / 5) * 280,
+                                            width: MOODBOARD_CARD_WIDTH,
+                                            captionHeight: MOODBOARD_CAPTION_HEIGHT,
+                                        })}
+                                        className="text-xs font-medium text-blue-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        Place
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}

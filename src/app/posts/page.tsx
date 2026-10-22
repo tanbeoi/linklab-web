@@ -200,7 +200,7 @@ export default function ListPostsPage() {
                                                     router.push(`/posts/${post.id}`);
                                                 }
                                             }}
-                                            className="cursor-pointer rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:p-6"
+                                            className="cursor-pointer rounded-lg border border-amber-100 bg-white p-5 shadow-sm transition hover:border-amber-200 hover:shadow-md focus-visible:outline-2 focus-visible:outline-amber-600 sm:p-6"
                                         >    
                                             {/* Grid-cols-3 creates 3 equal columns, and col-span-2 makes the content section occupies 2 of those           */}
                                             <div className="grid gap-6 sm:grid-cols-3 sm:items-center">
@@ -368,7 +368,7 @@ export default function ListPostsPage() {
                                                             <Link
                                                                 href={`/my-posts/${post.id}/edit`}
                                                                 onClick={(event) => event.stopPropagation()}
-                                                                className="inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-700 sm:w-auto"
+                                                                className="inline-flex w-full items-center justify-center rounded-md border border-amber-200 bg-amber-50 px-5 py-2.5 text-sm font-medium text-amber-950 hover:bg-amber-100 sm:w-auto"
                                                             >
                                                                 Edit post
                                                             </Link>
@@ -393,7 +393,7 @@ export default function ListPostsPage() {
                                                         <>
                                                             <Link
                                                                 href={`/posts/${post.id}/apply`}
-                                                                className="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto lg:hidden"
+                                                                className="inline-flex w-full items-center justify-center rounded-md bg-amber-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 sm:w-auto lg:hidden"
                                                             >
                                                                 Apply
                                                             </Link>
@@ -417,7 +417,7 @@ export default function ListPostsPage() {
 
                                                                     setSelectedPost(post);
                                                                 }}
-                                                                className="hidden w-full items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto lg:inline-flex"
+                                                                className="hidden w-full items-center justify-center rounded-md bg-amber-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 sm:w-auto lg:inline-flex"
                                                             >
                                                                 Apply
                                                             </button>

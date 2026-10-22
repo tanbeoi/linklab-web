@@ -83,12 +83,12 @@ export default function ApplyToPostPage() {
             <div className="mx-auto max-w-3xl">
                 <Link
                     href="/posts"
-                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                    className="text-sm font-medium text-amber-700 hover:text-amber-800"
                 >
                     ← Back to posts
                 </Link>
 
-                <article className="mt-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                <article className="mt-6 rounded-lg border border-amber-100 bg-white p-6 shadow-sm sm:p-8">
                     <h1 className="break-words text-3xl font-bold text-slate-900">
                         {isOwnPost || hasAlreadyApplied
                             ? post.title

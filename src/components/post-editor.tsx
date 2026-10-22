@@ -111,16 +111,16 @@ export function PostEditor({ postId }: { postId: string }) {
 
     return <main className="min-h-full flex-1 bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
         <div className="mx-auto max-w-4xl">
-            <Link href="/my-posts" className="text-sm font-medium text-blue-700 hover:underline">← My posts</Link>
+            <Link href="/my-posts" className="text-sm font-medium text-amber-700 hover:underline">← My posts</Link>
             <header className="mt-5 flex flex-wrap items-start justify-between gap-4">
-                <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Post editor</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">{post.title}</h1></div>
+                <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-700">Post editor</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">{post.title}</h1></div>
                 <Link href={`/posts/${post.id}`} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">View post ↗</Link>
             </header>
 
             {notice && <p role="status" className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">{notice}</p>}
             {error && <p role="alert" className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">{error}</p>}
 
-            <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <section className="mt-6 rounded-xl border border-amber-100 bg-white p-5 shadow-sm sm:p-6">
                 <h2 className="text-xl font-semibold">Post details</h2>
                 <div className="mt-5 grid gap-4">
                     <label className="grid gap-1 text-sm font-medium">Title<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} className="rounded-md border border-slate-300 px-3 py-2 font-normal" /></label>
@@ -128,7 +128,7 @@ export function PostEditor({ postId }: { postId: string }) {
                     <label className="grid gap-1 text-sm font-medium">Location<input value={form.location} disabled={form.isRemote} onChange={(event) => setForm({ ...form, location: event.target.value })} className="rounded-md border border-slate-300 px-3 py-2 font-normal disabled:bg-slate-100" /></label>
                     <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={form.isRemote} onChange={(event) => setForm({ ...form, isRemote: event.target.checked })} /> Remote collaboration</label>
                 </div>
-                <button type="button" onClick={() => void savePost()} disabled={isSaving} className="mt-5 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400">{isSaving ? "Saving..." : "Save post details"}</button>
+                <button type="button" onClick={() => void savePost()} disabled={isSaving} className="mt-5 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-400">{isSaving ? "Saving..." : "Save post details"}</button>
             </section>
 
             <div className="mt-5 grid gap-5 lg:grid-cols-2">

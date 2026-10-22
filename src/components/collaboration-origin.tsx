@@ -58,18 +58,16 @@ export function CollaborationOrigin({ gallery }: CollaborationOriginProps) {
     const postTitle = post?.title ?? gallery.collabPostTitle ?? "Linked collaboration";
     const label = isMoodboard
         ? "Creative direction for this collaboration"
-        : "Collaboration origin";
+        : "This project results from this collaboration";
     const ownerContext = isMoodboard
         ? "Moodboard linked to this collaboration"
         : `Portfolio by ${gallery.ownerDisplayName || "the gallery owner"}`;
-    const panelClasses = isMoodboard
-        ? "border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 shadow-violet-950/10"
-        : "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 shadow-blue-950/10";
-    const accentClasses = isMoodboard ? "text-violet-700" : "text-blue-700";
-    const orbClasses = isMoodboard ? "bg-violet-200/50" : "bg-blue-200/50";
-    const buttonClasses = isMoodboard
-        ? "bg-violet-800 hover:bg-violet-700 focus-visible:outline-violet-700"
-        : "bg-slate-950 hover:bg-blue-700 focus-visible:outline-blue-600";
+    // Amber consistently represents the collaboration post itself, regardless
+    // of whether the linked gallery is a purple moodboard or blue portfolio.
+    const panelClasses = "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 shadow-amber-950/10";
+    const accentClasses = "text-amber-700";
+    const orbClasses = "bg-amber-200/50";
+    const buttonClasses = "bg-amber-700 hover:bg-amber-800 focus-visible:outline-amber-700";
 
     return (
         <section className={`relative overflow-hidden rounded-2xl border p-5 text-slate-900 shadow-lg sm:p-6 ${panelClasses}`}>
