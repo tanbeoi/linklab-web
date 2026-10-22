@@ -85,6 +85,27 @@ export function AuthProvider({
         };
     }, [logout]);
 
+    // localStorage is shared by every LinkLab tab. When another tab signs in or
+    // out, refresh this tab's in-memory user too so ownership checks and API
+    // requests always refer to the same account.
+    useEffect(() => {
+        function handleTokenChange(event: StorageEvent) {
+            if (event.key !== "linklab_token") return;
+
+            if (!event.newValue) {
+                setUser(null);
+                return;
+            }
+
+            void apiRequest<AuthUser>("/api/auth/me")
+                .then((activeUser) => setUser(activeUser))
+                .catch(() => logout());
+        }
+
+        window.addEventListener("storage", handleTokenChange);
+        return () => window.removeEventListener("storage", handleTokenChange);
+    }, [logout]);
+
     useEffect(() => {
         function handleUnauthorized() {
             logout();

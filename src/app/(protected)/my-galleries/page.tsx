@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { GalleryViewer } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
+import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import {
     galleryPurposeLabels,
@@ -12,6 +13,8 @@ import {
 import Link from "next/link";
 
 export default function MyGalleriesPage() {
+    const { user, isLoading: isCheckingSession } = useAuth();
+    const userId = user?.id;
     const [viewingGallery, setViewingGallery] = useState<{ gallery: Gallery } | null>(null);
     const [galleries, setGalleries] = useState<Gallery[]>([]);
     const [error, setError] = useState("");
@@ -21,6 +24,12 @@ export default function MyGalleriesPage() {
         let cancelled = false;
 
         async function loadGalleries() {
+            if (isCheckingSession || !userId) return;
+
+            setIsLoading(true);
+            setError("");
+            setViewingGallery(null);
+
             try {
                 const data = await apiRequest<Gallery[]>("/api/galleries/mine");
 
@@ -47,7 +56,7 @@ export default function MyGalleriesPage() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [isCheckingSession, userId]);
 
     return (
         <main className="bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
