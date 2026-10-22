@@ -38,6 +38,8 @@ export type CreateCollabPostRequest = {
     isRemote: boolean;
 }
 
+export type UpdateCollabPostRequest = CreateCollabPostRequest;
+
 export type ApplyToPostRequest = {
     message: string;
 };

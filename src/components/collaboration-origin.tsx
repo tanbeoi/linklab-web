@@ -62,7 +62,7 @@ export function CollaborationOrigin({ gallery }: CollaborationOriginProps) {
             <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-blue-200/50 blur-2xl" />
             <div className="relative">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
-                    Made through this collaboration
+                    Collaboration origin
                 </p>
                 <h2 className="mt-2 max-w-3xl text-xl font-semibold tracking-tight sm:text-2xl">
                     {postTitle}
@@ -77,7 +77,7 @@ export function CollaborationOrigin({ gallery }: CollaborationOriginProps) {
                     <span>Portfolio by {gallery.ownerDisplayName || "the gallery owner"}</span>
                 </div>
                 <Link
-                    href={`/posts#post-${gallery.collabPostId}`}
+                    href={`/posts/${gallery.collabPostId}`}
                     className="mt-5 inline-flex items-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                 >
                     View collaboration →

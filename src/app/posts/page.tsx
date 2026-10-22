@@ -177,6 +177,10 @@ export default function ListPostsPage() {
                                     // Keep the post list usable until the API has been restarted with the update.
                                     const portfolioGalleries =
                                         post.portfolioGalleries ?? [];
+                                    const solePortfolio =
+                                        portfolioGalleries.length === 1
+                                            ? portfolioGalleries[0]
+                                            : null;
 
                                     const remainingImageCount = Math.max(
                                         post.moodboardPhotoCount - previewImages.length,
@@ -187,7 +191,16 @@ export default function ListPostsPage() {
                                         <article
                                             key={post.id}
                                             id={`post-${post.id}`}
-                                            className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                                            role="link"
+                                            tabIndex={0}
+                                            onClick={() => router.push(`/posts/${post.id}`)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" || event.key === " ") {
+                                                    event.preventDefault();
+                                                    router.push(`/posts/${post.id}`);
+                                                }
+                                            }}
+                                            className="cursor-pointer rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:p-6"
                                         >    
                                             {/* Grid-cols-3 creates 3 equal columns, and col-span-2 makes the content section occupies 2 of those           */}
                                             <div className="grid gap-6 sm:grid-cols-3 sm:items-center">
@@ -250,11 +263,27 @@ export default function ListPostsPage() {
                                                     )}
 
                                                     {portfolioGalleries.length > 0 && (
-                                                        <section className="mt-5 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-4 shadow-sm">
+                                                        <section
+                                                            role={solePortfolio ? "link" : undefined}
+                                                            tabIndex={solePortfolio ? 0 : undefined}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                if (solePortfolio) {
+                                                                    router.push(`/galleries/${solePortfolio.id}`);
+                                                                }
+                                                            }}
+                                                            onKeyDown={(event) => {
+                                                                if (!solePortfolio || (event.key !== "Enter" && event.key !== " ")) return;
+                                                                event.preventDefault();
+                                                                event.stopPropagation();
+                                                                router.push(`/galleries/${solePortfolio.id}`);
+                                                            }}
+                                                            className={`mt-5 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-4 shadow-sm ${solePortfolio ? "cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600" : ""}`}
+                                                        >
                                                             <div className="flex flex-wrap items-start justify-between gap-3">
                                                                 <div>
                                                                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
-                                                                        Made through this collaboration
+                                                                        Project outcomes
                                                                     </p>
                                                                     <h3 className="mt-1 text-base font-semibold text-slate-900">
                                                                         Work created from this collaboration
@@ -321,17 +350,24 @@ export default function ListPostsPage() {
                                                     </div>
                                                 </div>
 
-                                                <div className="sm:flex sm:justify-end">
+                                                <div onClick={(event) => event.stopPropagation()} className="flex flex-wrap gap-3 sm:justify-end">
                                                     {isOwnPost ? (
-                                                        <Link
-                                                            href={`/my-posts/${post.id}/applications`}
-                                                            onClick={(event) =>
-                                                                event.stopPropagation()
-                                                            }
-                                                            className="inline-flex w-full items-center justify-center rounded-md border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:w-auto"
-                                                        >
-                                                            View applicants
-                                                        </Link>
+                                                        <>
+                                                            <Link
+                                                                href={`/my-posts/${post.id}/edit`}
+                                                                onClick={(event) => event.stopPropagation()}
+                                                                className="inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-700 sm:w-auto"
+                                                            >
+                                                                Edit post
+                                                            </Link>
+                                                            <Link
+                                                                href={`/my-posts/${post.id}/applications`}
+                                                                onClick={(event) => event.stopPropagation()}
+                                                                className="inline-flex w-full items-center justify-center rounded-md border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:w-auto"
+                                                            >
+                                                                View applicants
+                                                            </Link>
+                                                        </>
                                                     ) : isApplyDisabled ? (
                                                         <button
                                                             type="button"
