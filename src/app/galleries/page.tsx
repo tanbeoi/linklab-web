@@ -8,11 +8,20 @@ import { apiRequest } from "@/lib/api";
 import type { Gallery } from "@/types/galleries";
 import type { PagedResponse } from "@/types/posts";
 
+type GalleryFilter = "all" | "moodboard" | "portfolio";
+
 export default function PublicGalleriesPage() {
     const [viewingGallery, setViewingGallery] = useState<{ gallery: Gallery } | null>(null);
     const [galleries, setGalleries] = useState<Gallery[]>([]);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const [filter, setFilter] = useState<GalleryFilter>("all");
+
+    const visibleGalleries = galleries.filter((gallery) =>
+        filter === "all" ||
+        (filter === "moodboard" && gallery.purpose === 1) ||
+        (filter === "portfolio" && gallery.purpose === 0),
+    );
 
     useEffect(() => {
         let cancelled = false;
@@ -51,9 +60,24 @@ export default function PublicGalleriesPage() {
     return (
         <main className="bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
             <div className="mx-auto max-w-5xl">
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                    Public Galleries
-                </h1>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                        Public Galleries
+                    </h1>
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600" htmlFor="gallery-filter">
+                        Show
+                        <select
+                            id="gallery-filter"
+                            value={filter}
+                            onChange={(event) => setFilter(event.target.value as GalleryFilter)}
+                            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        >
+                            <option value="all">All galleries</option>
+                            <option value="moodboard">Moodboards</option>
+                            <option value="portfolio">Portfolios</option>
+                        </select>
+                    </label>
+                </div>
                 <p className="mt-3 max-w-2xl leading-7 text-slate-600">
                     Explore published creative portfolio projects and moodboards from the
                     LinkLab community.
@@ -72,9 +96,13 @@ export default function PublicGalleriesPage() {
                     <p className="mt-8 rounded-lg border border-slate-200 bg-white p-6 text-slate-600 shadow-sm">
                         No public galleries have been published yet.
                     </p>
+                ) : visibleGalleries.length === 0 ? (
+                    <p className="mt-8 rounded-lg border border-slate-200 bg-white p-6 text-slate-600 shadow-sm">
+                        No {filter === "moodboard" ? "moodboards" : "portfolios"} have been published yet.
+                    </p>
                 ) : (
                     <section className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {galleries.map((gallery) => (
+                        {visibleGalleries.map((gallery) => (
                             <article
                                 key={gallery.id}
                                 className="min-w-0"
