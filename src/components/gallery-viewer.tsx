@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
+import { MoodboardComposition } from "@/components/moodboard-board";
 import type { Gallery, Photo } from "@/types/galleries";
 
 export type GalleryViewerSource = { gallery: Gallery } | { postId: string };
@@ -95,6 +96,7 @@ export function GalleryViewer({ source, onClose }: {
                     </div>
                 ) : !content ? <p role="status" className="py-16 text-center">Loading photos…</p>
                 : content.photos.length === 0 ? <p className="rounded-lg bg-white p-10 text-center text-slate-600">No photos have been added yet.</p>
+                : content.gallery.purpose === 1 ? <MoodboardComposition photos={content.photos} />
                 : <div className="overflow-hidden bg-white text-slate-900">
                     {content.photos.map(photo => <GalleryPhoto key={photo.id} photo={photo} />)}
                 </div>}

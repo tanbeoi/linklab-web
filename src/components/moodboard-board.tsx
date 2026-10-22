@@ -11,6 +11,7 @@ const MOODBOARD_CARD_MIN_WIDTH = 120;
 export const MOODBOARD_CAPTION_HEIGHT = 58;
 const MOODBOARD_CAPTION_MIN_HEIGHT = 40;
 const MOODBOARD_CAPTION_MAX_HEIGHT = 320;
+const MOODBOARD_PRESENTATION_PADDING = 80;
 
 type BoardPosition = { x: number; y: number };
 export type MoodboardLayout = BoardPosition & {
@@ -102,6 +103,108 @@ function resizeLayout(
         width: Math.round(width),
         captionHeight: layout.captionHeight,
     };
+}
+
+type MoodboardCompositionProps = {
+    photos: Photo[];
+};
+
+// Read-only public presentation of the editor's composition. It crops the
+// 2400×1600 working canvas to the smallest area that contains every placed
+// card, then scales that area responsively to the available width.
+export function MoodboardComposition({ photos }: MoodboardCompositionProps) {
+    const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
+    const placedPhotos = photos
+        .filter(isPlaced)
+        .sort((a, b) => (a.boardZIndex ?? 0) - (b.boardZIndex ?? 0));
+
+    function saveAspectRatio(photo: Photo, image: HTMLImageElement) {
+        if (image.naturalWidth === 0 || image.naturalHeight === 0) return;
+        const aspectRatio = image.naturalWidth / image.naturalHeight;
+        setAspectRatios((current) => current[photo.id] === aspectRatio
+            ? current
+            : { ...current, [photo.id]: aspectRatio });
+    }
+
+    if (placedPhotos.length === 0) {
+        return (
+            <p className="rounded-lg bg-white p-8 text-center text-slate-600">
+                This moodboard has no placed images yet.
+            </p>
+        );
+    }
+
+    const bounds = placedPhotos.reduce((current, photo) => {
+        const layout = getLayout(photo);
+        const imageHeight = layout.width / (aspectRatios[photo.id] ?? 4 / 3);
+
+        return {
+            left: Math.min(current.left, layout.x),
+            top: Math.min(current.top, layout.y),
+            right: Math.max(current.right, layout.x + layout.width),
+            bottom: Math.max(current.bottom, layout.y + imageHeight + layout.captionHeight),
+        };
+    }, {
+        left: MOODBOARD_CANVAS_WIDTH,
+        top: MOODBOARD_CANVAS_HEIGHT,
+        right: 0,
+        bottom: 0,
+    });
+
+    const crop = {
+        left: Math.max(0, bounds.left - MOODBOARD_PRESENTATION_PADDING),
+        top: Math.max(0, bounds.top - MOODBOARD_PRESENTATION_PADDING),
+        right: Math.min(MOODBOARD_CANVAS_WIDTH, bounds.right + MOODBOARD_PRESENTATION_PADDING),
+        bottom: Math.min(MOODBOARD_CANVAS_HEIGHT, bounds.bottom + MOODBOARD_PRESENTATION_PADDING),
+    };
+    const cropWidth = Math.max(1, crop.right - crop.left);
+    const cropHeight = Math.max(1, crop.bottom - crop.top);
+
+    return (
+        <div
+            aria-label="Moodboard composition"
+            className="relative w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+            style={{
+                aspectRatio: `${cropWidth} / ${cropHeight}`,
+                backgroundImage: "radial-gradient(#cbd5e1 1px, transparent 1px)",
+                backgroundSize: "18px 18px",
+            }}
+        >
+            {placedPhotos.map((photo) => {
+                const layout = getLayout(photo);
+                const caption = photo.caption ?? "";
+
+                return (
+                    <figure
+                        key={photo.id}
+                        className="absolute overflow-hidden rounded-sm bg-white shadow-lg ring-1 ring-black/10"
+                        style={{
+                            left: `${((layout.x - crop.left) / cropWidth) * 100}%`,
+                            top: `${((layout.y - crop.top) / cropHeight) * 100}%`,
+                            width: `${(layout.width / cropWidth) * 100}%`,
+                            zIndex: photo.boardZIndex ?? 0,
+                        }}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={photo.imageUrl}
+                            alt={caption || "Moodboard image"}
+                            loading="lazy"
+                            decoding="async"
+                            onLoad={(event) => saveAspectRatio(photo, event.currentTarget)}
+                            className="block h-auto w-full"
+                        />
+                        <figcaption
+                            className="relative border-t border-slate-100 bg-white text-slate-600"
+                            style={{ paddingTop: `${(layout.captionHeight / layout.width) * 100}%` }}
+                        >
+                            {caption && <span className="absolute inset-0 flex items-start overflow-hidden px-2 py-1.5 text-xs">{caption}</span>}
+                        </figcaption>
+                    </figure>
+                );
+            })}
+        </div>
+    );
 }
 
 export function MoodboardBoard({

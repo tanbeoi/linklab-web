@@ -55,7 +55,7 @@ export default function PublicGalleriesPage() {
                     Public Galleries
                 </h1>
                 <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-                    Explore published creative references and moodboards from the
+                    Explore published creative portfolio projects and moodboards from the
                     LinkLab community.
                 </p>
 

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { apiRequest } from "@/lib/api";
-import { MoodboardBoard } from "@/components/moodboard-board";
+import { MoodboardComposition } from "@/components/moodboard-board";
 import type { Gallery, Photo } from "@/types/galleries";
 
 export default function PublicGalleryPage() {
@@ -43,7 +43,7 @@ export default function PublicGalleryPage() {
                 {content.gallery.description && <p className="mt-5 max-w-3xl whitespace-pre-wrap text-slate-200">{content.gallery.description}</p>}
             </header>
             {content.photos.length === 0 ? <p className="rounded-lg bg-white p-8 text-slate-600">No photos have been added yet.</p>
-                : content.gallery.purpose === 1 ? <MoodboardBoard photos={content.photos} />
+                : content.gallery.purpose === 1 ? <MoodboardComposition photos={content.photos} />
                 : <div className="overflow-hidden bg-white">
                     {content.photos.map((photo) => <figure key={photo.id}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
