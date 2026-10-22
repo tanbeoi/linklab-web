@@ -5,6 +5,7 @@ import Link from "next/link";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { MoodboardComposition } from "@/components/moodboard-board";
+import { CollaborationOrigin } from "@/components/collaboration-origin";
 import type { Gallery, Photo } from "@/types/galleries";
 
 export type GalleryViewerSource = { gallery: Gallery } | { postId: string };
@@ -78,7 +79,7 @@ export function GalleryViewer({ source, onClose }: {
             className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none overflow-y-auto overscroll-contain bg-transparent px-3 py-6 text-white backdrop:bg-black/85 sm:px-12 sm:py-10">
             <button type="button" autoFocus onClick={onClose} aria-label="Close gallery"
                 className="fixed right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/80 text-3xl text-white hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-white sm:right-5 sm:top-5">×</button>
-            <article className="mx-auto max-w-5xl">
+            <article className="mx-auto w-full max-w-5xl">
                 <header className="mb-6 pr-12">
                     <p className="text-xs font-medium uppercase tracking-widest text-slate-300">{gallery?.purpose === 1 ? "Moodboard" : "Gallery"}</p>
                     <h2 id="gallery-viewer-title" className="mt-2 break-words text-2xl font-semibold sm:text-3xl">{gallery?.title || "Loading gallery…"}</h2>
@@ -88,6 +89,7 @@ export function GalleryViewer({ source, onClose }: {
                     </div>}
                     {gallery?.description && <p className="mt-4 whitespace-pre-wrap break-words text-slate-300">{gallery.description}</p>}
                 </header>
+                {gallery && <div className="mb-6"><CollaborationOrigin gallery={gallery} /></div>}
                 {error ? (
                     <div role="alert" className="rounded-lg bg-white p-6 text-slate-900">
                         <p>{error}</p>

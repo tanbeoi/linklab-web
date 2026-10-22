@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { apiRequest } from "@/lib/api";
 import { MoodboardComposition } from "@/components/moodboard-board";
+import { CollaborationOrigin } from "@/components/collaboration-origin";
 import type { Gallery, Photo } from "@/types/galleries";
 
 export default function PublicGalleryPage() {
@@ -34,7 +35,7 @@ export default function PublicGalleryPage() {
     if (!content) return <main className="public-gallery-page flex min-h-full flex-1 bg-slate-950 px-4 py-12 text-white"><p className="mx-auto max-w-4xl">Loading gallery…</p></main>;
 
     return <main className="public-gallery-page flex min-h-full flex-1 flex-col bg-slate-950 px-4 py-10 text-white sm:px-6">
-        <article className="mx-auto max-w-5xl">
+        <article className="mx-auto w-full max-w-5xl">
             <Link href="/galleries" className="text-sm text-slate-300 hover:text-white">← Public Galleries</Link>
             <header className="mt-6 mb-8">
                 <p className="text-xs font-medium uppercase tracking-widest text-slate-300">{content.gallery.purpose === 1 ? "Moodboard" : "Portfolio"}</p>
@@ -42,6 +43,7 @@ export default function PublicGalleryPage() {
                 <p className="mt-3 text-slate-300">By {content.gallery.ownerDisplayName}</p>
                 {content.gallery.description && <p className="mt-5 max-w-3xl whitespace-pre-wrap text-slate-200">{content.gallery.description}</p>}
             </header>
+            <div className="mb-6"><CollaborationOrigin gallery={content.gallery} /></div>
             {content.photos.length === 0 ? <p className="rounded-lg bg-white p-8 text-slate-600">No photos have been added yet.</p>
                 : content.gallery.purpose === 1 ? <MoodboardComposition photos={content.photos} />
                 : <div className="overflow-hidden bg-white">

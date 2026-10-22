@@ -9,7 +9,16 @@ export type CollabPost = {
     ownerDisplayName: string;
     moodboardPreviewImageUrls: string[];
     moodboardPhotoCount: number;
+    portfolioGalleries: PortfolioGalleryPreview[];
     hasCurrentUserApplied: boolean;
+};
+
+export type PortfolioGalleryPreview = {
+    id: string;
+    title: string;
+    ownerDisplayName: string;
+    previewImageUrl: string | null;
+    photoCount: number;
 };
 
 export type PagedResponse<T> = {

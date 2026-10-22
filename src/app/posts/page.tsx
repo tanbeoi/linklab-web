@@ -173,6 +173,10 @@ export default function ListPostsPage() {
                                         : undefined;
                                     const previewImages =
                                         post.moodboardPreviewImageUrls;
+                                    // Older running API instances do not include this newly added field yet.
+                                    // Keep the post list usable until the API has been restarted with the update.
+                                    const portfolioGalleries =
+                                        post.portfolioGalleries ?? [];
 
                                     const remainingImageCount = Math.max(
                                         post.moodboardPhotoCount - previewImages.length,
@@ -182,6 +186,7 @@ export default function ListPostsPage() {
                                     return (
                                         <article
                                             key={post.id}
+                                            id={`post-${post.id}`}
                                             className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
                                         >    
                                             {/* Grid-cols-3 creates 3 equal columns, and col-span-2 makes the content section occupies 2 of those           */}
@@ -196,8 +201,15 @@ export default function ListPostsPage() {
                                                     </p>
 
                                                     {previewImages.length > 0 && (
-                                                        <div
-                                                            className={`mt-4 grid gap-2 ${
+                                                        <section className="mt-5">
+                                                            <div className="mb-2 flex items-center gap-2">
+                                                                <span className="h-px w-5 bg-violet-300" />
+                                                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">
+                                                                    Creative direction
+                                                                </p>
+                                                            </div>
+                                                            <div
+                                                                className={`grid gap-2 ${
                                                                 previewImages.length === 1
                                                                     ? "grid-cols-1"
                                                                     : previewImages.length === 2
@@ -234,6 +246,64 @@ export default function ListPostsPage() {
                                                                 );
                                                             })}
                                                         </div>
+                                                        </section>
+                                                    )}
+
+                                                    {portfolioGalleries.length > 0 && (
+                                                        <section className="mt-5 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-4 shadow-sm">
+                                                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                                                <div>
+                                                                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
+                                                                        Made through this collaboration
+                                                                    </p>
+                                                                    <h3 className="mt-1 text-base font-semibold text-slate-900">
+                                                                        Work created from this collaboration
+                                                                    </h3>
+                                                                    <p className="mt-1 text-sm text-slate-600">
+                                                                        See how this idea became finished work.
+                                                                    </p>
+                                                                </div>
+                                                                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm ring-1 ring-blue-100">
+                                                                    {portfolioGalleries.length} portfolio{portfolioGalleries.length === 1 ? "" : "s"}
+                                                                </span>
+                                                            </div>
+                                                            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                                                {portfolioGalleries.map((portfolio) => (
+                                                                    <Link
+                                                                        key={portfolio.id}
+                                                                        href={`/galleries/${portfolio.id}`}
+                                                                        onClick={(event) => event.stopPropagation()}
+                                                                        className="group overflow-hidden rounded-lg border border-white bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600"
+                                                                    >
+                                                                        <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
+                                                                            {portfolio.previewImageUrl ? (
+                                                                                <MoodboardThumbnail
+                                                                                    src={portfolio.previewImageUrl}
+                                                                                    alt={`Preview of ${portfolio.title}`}
+                                                                                />
+                                                                            ) : (
+                                                                                <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                                                                                    Portfolio gallery
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="p-3">
+                                                                            <div className="flex items-center justify-between gap-2">
+                                                                                <p className="truncate font-semibold text-slate-900 group-hover:text-blue-700">
+                                                                                    {portfolio.title}
+                                                                                </p>
+                                                                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                                                                    Portfolio
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className="mt-1 text-sm text-slate-600">
+                                                                                By {portfolio.ownerDisplayName}
+                                                                            </p>
+                                                                        </div>
+                                                                    </Link>
+                                                                ))}
+                                                            </div>
+                                                        </section>
                                                     )}
 
                                                     <div className="mt-4 space-y-1 text-sm text-slate-500 sm:flex sm:items-center sm:gap-4 sm:space-y-0">

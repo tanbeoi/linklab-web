@@ -50,6 +50,10 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         type: "success" | "error";
         message: string;
     } | null>(null);
+    const [copyFeedback, setCopyFeedback] = useState<{
+        type: "success" | "error";
+        message: string;
+    } | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -302,6 +306,34 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         }
     }
 
+    async function copyPublicLink() {
+        if (!gallery) return;
+
+        const publicLink = `${window.location.origin}/galleries/${gallery.id}`;
+        setCopyFeedback(null);
+
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(publicLink);
+            } else {
+                const fallbackInput = document.createElement("textarea");
+                fallbackInput.value = publicLink;
+                fallbackInput.setAttribute("readonly", "");
+                fallbackInput.className = "fixed -left-[9999px]";
+                document.body.appendChild(fallbackInput);
+                fallbackInput.select();
+                const copied = document.execCommand("copy");
+                fallbackInput.remove();
+
+                if (!copied) throw new Error("Clipboard access was denied.");
+            }
+
+            setCopyFeedback({ type: "success", message: "Public link copied." });
+        } catch {
+            setCopyFeedback({ type: "error", message: "Could not copy the link. Please copy it from the public gallery page." });
+        }
+    }
+
     if (isLoading) return <main className="gallery-editor-page flex min-h-full flex-1 bg-slate-100 px-4 py-10 text-slate-600">Loading gallery editor…</main>;
     if (error && !gallery) return <main className="gallery-editor-page flex min-h-full flex-1 bg-slate-100 px-4 py-10"><p role="alert" className="mx-auto max-w-2xl rounded-lg border border-red-200 bg-red-50 p-5 text-red-700">{error}</p></main>;
     if (!gallery || gallery.ownerId !== user?.id) return <main className="gallery-editor-page flex min-h-full flex-1 bg-slate-100 px-4 py-10"><p className="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-5 text-slate-700">You can only edit your own galleries.</p></main>;
@@ -394,7 +426,20 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                         <h2 className="text-lg font-semibold">Visibility</h2>
                         <p className="mt-2 text-sm leading-6 text-slate-600">{gallery.isPublished ? "Published galleries appear in Public Galleries and can be opened by anyone with the link." : "Draft galleries are visible only to you. Add at least one photo before publishing."}</p>
-                        {gallery.isPublished && <Link href={`/galleries/${gallery.id}`} className="mt-3 inline-block text-sm font-medium text-blue-700 hover:underline">Open public gallery ↗</Link>}
+                        {gallery.isPublished && <>
+                            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                                <Link href={`/galleries/${gallery.id}`} className="text-sm font-medium text-blue-700 hover:underline">Open public gallery ↗</Link>
+                                <button type="button" onClick={() => { void copyPublicLink(); }} className="text-sm font-medium text-blue-700 hover:underline">
+                                    Copy public link
+                                </button>
+                            </div>
+                            {copyFeedback && <p
+                                role={copyFeedback.type === "error" ? "alert" : "status"}
+                                className={`mt-3 text-sm ${copyFeedback.type === "error" ? "text-red-700" : "text-green-700"}`}
+                            >
+                                {copyFeedback.message}
+                            </p>}
+                        </>}
                         <button type="button" disabled={isPublishing || (!gallery.isPublished && photos.length === 0)} onClick={changePublication} className="mt-4 w-full rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">{isPublishing ? "Updating…" : gallery.isPublished ? "Unpublish gallery" : "Publish gallery"}</button>
                     </section>
                 </aside>
