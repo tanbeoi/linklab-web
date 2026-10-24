@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { ApplicationForm } from "@/components/application-form";
@@ -81,14 +80,7 @@ export default function ApplyToPostPage() {
     return (
         <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
             <div className="mx-auto max-w-3xl">
-                <Link
-                    href="/posts"
-                    className="text-sm font-medium text-amber-700 hover:text-amber-800"
-                >
-                    ← Back to posts
-                </Link>
-
-                <article className="mt-6 rounded-lg border border-amber-100 bg-white p-6 shadow-sm sm:p-8">
+                <article className="rounded-lg border border-amber-100 bg-white p-6 shadow-sm sm:p-8">
                     <h1 className="break-words text-3xl font-bold text-slate-900">
                         {isOwnPost || hasAlreadyApplied
                             ? post.title
