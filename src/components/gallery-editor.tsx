@@ -458,7 +458,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     </section>
                 )}
 
-                <aside className="lg:sticky lg:top-5">
+                <aside className="xl:sticky xl:top-5 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
                     <form action={saveDetails} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                         <h2 className="text-lg font-semibold">Gallery settings</h2>
                         <label className="mt-5 block text-sm font-medium" htmlFor="gallery-title">Title</label>
