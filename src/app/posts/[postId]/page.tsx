@@ -9,6 +9,33 @@ import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import type { CollabPost } from "@/types/posts";
+import type { ApplicationStatus } from "@/types/posts";
+
+function applicationStatusForPost(post: CollabPost): ApplicationStatus | null {
+    return post.currentUserApplicationStatus ?? (post.hasCurrentUserApplied ? "Pending" : null);
+}
+
+function applicationStatusLabel(status: ApplicationStatus) {
+    switch (status) {
+        case "Accepted":
+            return "Accepted";
+        case "Rejected":
+            return "Rejected";
+        default:
+            return "Pending";
+    }
+}
+
+function applicationStatusClassName(status: ApplicationStatus) {
+    switch (status) {
+        case "Accepted":
+            return "border border-emerald-200 bg-emerald-50 text-emerald-800";
+        case "Rejected":
+            return "border border-rose-200 bg-rose-50 text-rose-800";
+        default:
+            return "border border-amber-200 bg-amber-50 text-amber-800";
+    }
+}
 
 export default function PostPage() {
     const { postId } = useParams<{ postId: string }>();
@@ -43,17 +70,18 @@ export default function PostPage() {
     const previewImages = post.moodboardPreviewImageUrls ?? [];
     const remainingImageCount = Math.max(post.moodboardPhotoCount - previewImages.length, 0);
     const portfolios = post.portfolioGalleries ?? [];
+    const applicationStatus = applicationStatusForPost(post);
 
     return <main className="min-h-full flex-1 bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
         <article className="mx-auto max-w-4xl">
-            <Link href="/posts" className="text-sm font-medium text-amber-700 hover:underline">← All collaboration posts</Link>
-            <header className="mt-6 rounded-2xl border border-amber-100 bg-white p-6 shadow-sm sm:p-8">
+            <header className="rounded-2xl border border-amber-100 bg-white p-6 shadow-sm sm:p-8">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-700">Collaboration post</p>
                         <h1 className="mt-2 break-words text-3xl font-bold tracking-tight sm:text-4xl">{post.title}</h1>
                     </div>
                     {isOwner ? <Link href={`/my-posts/${post.id}/edit`} className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-950 hover:bg-amber-100">Edit post</Link>
+                        : applicationStatus ? <span role="status" title={`Your application is ${applicationStatus.toLowerCase()}.`} className={`rounded-md px-4 py-2 text-sm font-medium ${applicationStatusClassName(applicationStatus)}`}>{applicationStatusLabel(applicationStatus)}</span>
                         : <Link href={`/posts/${post.id}/apply`} className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">Apply to collaborate</Link>}
                 </div>
                 <p className="mt-5 whitespace-pre-wrap break-words text-lg leading-8 text-slate-600">{post.description}</p>
@@ -73,9 +101,9 @@ export default function PostPage() {
             </section>}
 
             {portfolios.length > 0 && <section className="mt-6 overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-5 shadow-sm sm:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Project outcomes</p><h2 className="mt-1 text-2xl font-semibold">Work created from this collaboration</h2><p className="mt-2 text-slate-600">See how the shared idea became finished work.</p></div><span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-blue-700 shadow-sm">{portfolios.length} portfolio{portfolios.length === 1 ? "" : "s"}</span></div>
-                <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                    {portfolios.map((portfolio) => <button type="button" key={portfolio.id} onClick={() => setViewingGallery({ galleryId: portfolio.id })} className="group overflow-hidden rounded-xl border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600">
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Project outcomes</p><p className="mt-2 text-slate-600">See how the shared idea became finished work.</p></div><span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-blue-700 shadow-sm">{portfolios.length} portfolio{portfolios.length === 1 ? "" : "s"}</span></div>
+                <div aria-label="Linked portfolio galleries" className="mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-2">
+                    {portfolios.map((portfolio) => <button type="button" key={portfolio.id} onClick={() => setViewingGallery({ galleryId: portfolio.id })} className="group w-72 shrink-0 snap-start overflow-hidden rounded-xl border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-80">
                         <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">{portfolio.previewImageUrl ? <MoodboardThumbnail src={portfolio.previewImageUrl} alt={`Preview of ${portfolio.title}`} /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Portfolio gallery</div>}</div>
                         <div className="p-4"><div className="flex items-center justify-between gap-2"><h3 className="truncate font-semibold group-hover:text-blue-700">{portfolio.title}</h3><span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Portfolio</span></div><p className="mt-1 text-sm text-slate-600">By {portfolio.ownerDisplayName}</p></div>
                     </button>)}
