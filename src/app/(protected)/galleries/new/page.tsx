@@ -1,17 +1,26 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { apiRequest } from "@/lib/api";
 import type { CreateGalleryRequest, GalleryPurpose } from "@/types/galleries";
 import type { CollabPost, MyApplication, PagedResponse } from "@/types/posts";
 
+function purposeFromSearch(value: string | null): GalleryPurpose {
+    return value === "moodboard" ? 1 : 0;
+}
+
 export default function CreateGalleryPage() {
+    return <Suspense fallback={<main className="flex min-h-full flex-1 items-center justify-center bg-slate-50 px-4 py-10 text-slate-600">Loading gallery creator…</main>}><CreateGalleryForm /></Suspense>;
+}
+
+function CreateGalleryForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [purpose, setPurpose] = useState<GalleryPurpose>(0);
+    const [purpose, setPurpose] = useState<GalleryPurpose>(() => purposeFromSearch(searchParams.get("type")));
     const [collabPostId, setCollabPostId] = useState("");
     const [collaborations, setCollaborations] = useState<{ id: string; title: string }[]>([]);
     const [error, setError] = useState("");
@@ -75,10 +84,10 @@ export default function CreateGalleryPage() {
         <main className="bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
             <div className="mx-auto max-w-xl">
                 <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                    Create Gallery
+                    Create {purpose === 1 ? "Moodboard" : "Portfolio"}
                 </h1>
                 <p className="mt-3 leading-7 text-slate-600">
-                    Start a portfolio or moodboard to collect your creative references.
+                    {purpose === 1 ? "Collect visual references and arrange the creative direction." : "Collect finished work and project outcomes."}
                 </p>
 
                 <form

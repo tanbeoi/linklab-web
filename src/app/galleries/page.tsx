@@ -1,21 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { GalleryViewer } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
+import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import type { Gallery } from "@/types/galleries";
 import type { PagedResponse } from "@/types/posts";
 
 type GalleryFilter = "all" | "moodboard" | "portfolio";
 
+function filterFromSearch(value: string | null): GalleryFilter {
+    return value === "moodboard" || value === "portfolio" ? value : "all";
+}
+
 export default function PublicGalleriesPage() {
+    return <Suspense fallback={<main className="bg-slate-50 px-4 py-10 text-center text-slate-600 sm:px-6">Loading galleries...</main>}><PublicGalleriesContent /></Suspense>;
+}
+
+function PublicGalleriesContent() {
+    const searchParams = useSearchParams();
+    const { isAuthenticated } = useAuth();
     const [viewingGallery, setViewingGallery] = useState<{ gallery: Gallery } | null>(null);
     const [galleries, setGalleries] = useState<Gallery[]>([]);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
-    const [filter, setFilter] = useState<GalleryFilter>("all");
+    const [filter, setFilter] = useState<GalleryFilter>(() => filterFromSearch(searchParams.get("type")));
 
     const visibleGalleries = galleries.filter((gallery) =>
         filter === "all" ||
@@ -64,19 +77,22 @@ export default function PublicGalleriesPage() {
                     <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
                         Public Galleries
                     </h1>
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600" htmlFor="gallery-filter">
-                        Show
-                        <select
-                            id="gallery-filter"
-                            value={filter}
-                            onChange={(event) => setFilter(event.target.value as GalleryFilter)}
-                            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                        >
-                            <option value="all">All galleries</option>
-                            <option value="moodboard">Moodboards</option>
-                            <option value="portfolio">Portfolios</option>
-                        </select>
-                    </label>
+                    <div className="flex flex-wrap items-center justify-end gap-3">
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-600" htmlFor="gallery-filter">
+                            Show
+                            <select
+                                id="gallery-filter"
+                                value={filter}
+                                onChange={(event) => setFilter(event.target.value as GalleryFilter)}
+                                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                            >
+                                <option value="all">All galleries</option>
+                                <option value="moodboard">Moodboards</option>
+                                <option value="portfolio">Portfolios</option>
+                            </select>
+                        </label>
+                        {isAuthenticated && <Link href="/galleries/new" className="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700">Create gallery</Link>}
+                    </div>
                 </div>
                 <p className="mt-3 max-w-2xl leading-7 text-slate-600">
                     Explore published creative portfolio projects and moodboards from the
