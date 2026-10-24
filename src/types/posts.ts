@@ -11,6 +11,7 @@ export type CollabPost = {
     moodboardPhotoCount: number;
     portfolioGalleries: PortfolioGalleryPreview[];
     hasCurrentUserApplied: boolean;
+    currentUserApplicationStatus?: ApplicationStatus | null;
 };
 
 export type PortfolioGalleryPreview = {

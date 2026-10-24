@@ -70,7 +70,8 @@ export default function MyApplicationsPage() {
                         My Applications
                     </h1>
                     <p className="mt-3 leading-7 text-slate-600">
-                        Track the collaboration posts you have applied to.
+                        Track every collaboration post you have applied to, including
+                        the projects where you have been accepted.
                     </p>
                 </header>
 
