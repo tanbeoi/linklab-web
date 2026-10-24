@@ -13,6 +13,20 @@ const desktopLinkClassName =
 const mobileLinkClassName =
     "block rounded-md px-3 py-3 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900";
 
+function ProfileAvatar() {
+    return (
+        <span
+            aria-hidden="true"
+            className="flex size-9 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-500 shadow-sm transition group-hover:border-blue-200 group-hover:bg-blue-50 group-hover:text-blue-700"
+        >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="size-5">
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M5.5 20a6.5 6.5 0 0 1 13 0Z" />
+            </svg>
+        </span>
+    );
+}
+
 export function Navbar() {
     const router = useRouter();
     const { isAuthenticated, isLoading, logout } = useAuth();
@@ -116,13 +130,18 @@ export function Navbar() {
                                     <Link href="/galleries" className={desktopLinkClassName}>
                                         Public Galleries
                                     </Link>
-                                    <Link href="/galleries/mine" className={desktopLinkClassName}>
-                                        My Galleries
+                                    <Link
+                                        href="/profile"
+                                        aria-label="Open your profile"
+                                        title="Your profile"
+                                        className="group ml-1 rounded-full p-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                                    >
+                                        <ProfileAvatar />
                                     </Link>
                                     <button
                                         type="button"
                                         onClick={handleLogout}
-                                        className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                        className="ml-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
                                     >
                                         Logout
                                     </button>
@@ -212,8 +231,9 @@ export function Navbar() {
                                         <Link href="/galleries" onClick={closeMenu} className={mobileLinkClassName}>
                                             Public Galleries
                                         </Link>
-                                        <Link href="/galleries/mine" onClick={closeMenu} className={mobileLinkClassName}>
-                                            My Galleries
+                                        <Link href="/profile" onClick={closeMenu} className="flex items-center gap-3 rounded-md px-3 py-3 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900">
+                                            <ProfileAvatar />
+                                            Your profile
                                         </Link>
                                         <button
                                             type="button"

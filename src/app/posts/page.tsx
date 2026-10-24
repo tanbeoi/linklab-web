@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
-import { CollabPost, PagedResponse } from "@/types/posts";
+import { ApplicationStatus, CollabPost, PagedResponse } from "@/types/posts";
 import { ApplicationForm } from "@/components/application-form";
 import { useAuth } from "@/contexts/auth-context";
 import { GalleryViewer, type GalleryViewerSource } from "@/components/gallery-viewer";
@@ -23,6 +23,32 @@ function truncateWords(text: string, limit = 100) {
     const endIndex = finalWord.index + finalWord[0].length;
     
     return `${text.slice(0, endIndex)}...`;
+}
+
+function applicationStatusForPost(post: CollabPost): ApplicationStatus | null {
+    return post.currentUserApplicationStatus ?? (post.hasCurrentUserApplied ? "Pending" : null);
+}
+
+function applicationStatusLabel(status: ApplicationStatus) {
+    switch (status) {
+        case "Accepted":
+            return "Accepted";
+        case "Rejected":
+            return "Rejected";
+        default:
+            return "Pending";
+    }
+}
+
+function applicationStatusClassName(status: ApplicationStatus) {
+    switch (status) {
+        case "Accepted":
+            return "border border-emerald-200 bg-emerald-50 text-emerald-800";
+        case "Rejected":
+            return "border border-rose-200 bg-rose-50 text-rose-800";
+        default:
+            return "border border-amber-200 bg-amber-50 text-amber-800";
+    }
 }
 
 export default function ListPostsPage() {
@@ -50,7 +76,11 @@ export default function ListPostsPage() {
                 ...currentResponse,
                 items: currentResponse.items.map((post) =>
                     post.id === postId
-                        ? { ...post, hasCurrentUserApplied: true }
+                        ? {
+                            ...post,
+                            hasCurrentUserApplied: true,
+                            currentUserApplicationStatus: "Pending",
+                        }
                         : post,
                 ),
             };
@@ -111,13 +141,16 @@ export default function ListPostsPage() {
                 className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
             >
                 <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-                    <header className="mb-8">
-                        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                            Collaboration Posts
-                        </h1>
-                        <p className="mt-2 leading-7 text-slate-600">
-                            Browse opportunities to connect, share ideas, and work with others.
-                        </p>
+                    <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                                Collaboration Posts
+                            </h1>
+                            <p className="mt-2 leading-7 text-slate-600">
+                                Browse opportunities to connect, share ideas, and work with others.
+                            </p>
+                        </div>
+                        {isAuthenticated && <Link href="/posts/new" className="rounded-md bg-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-amber-700">Create post</Link>}
                     </header>
 
                     <div className="mb-6 flex items-center gap-3">
@@ -156,18 +189,22 @@ export default function ListPostsPage() {
                             <section className="space-y-4" aria-label="Collaboration posts">
                                 {postsResponse.items.map((post) => {
                                     const isOwnPost = user?.id === post.userId;
-                                    const hasAlreadyApplied =
-                                        post.hasCurrentUserApplied;
+                                    const applicationStatus = applicationStatusForPost(post);
+                                    const hasAlreadyApplied = Boolean(applicationStatus);
                                     const isApplyDisabled =
                                         hasAlreadyApplied ||
                                         isAuthLoading;
-                                    const applyButtonLabel = hasAlreadyApplied
-                                        ? "Applied"
+                                    const applyButtonLabel = applicationStatus
+                                        ? applicationStatusLabel(applicationStatus)
                                         : isAuthLoading
                                         ? "Checking..."
                                         : "Apply";
-                                    const applyButtonTitle = hasAlreadyApplied
-                                        ? "You have already applied to this post."
+                                    const applyButtonTitle = applicationStatus
+                                        ? applicationStatus === "Accepted"
+                                            ? "Your application was accepted."
+                                            : applicationStatus === "Rejected"
+                                                ? "Your application was rejected."
+                                                : "Your application is pending."
                                         : isAuthLoading
                                         ? "Checking your session..."
                                         : undefined;
@@ -294,12 +331,12 @@ export default function ListPostsPage() {
                                                         >
                                                             <div className="flex flex-wrap items-start justify-between gap-3">
                                                                 <div>
-                                                                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
-                                                                        Project outcomes
-                                                                    </p>
-                                                                    <h3 className="mt-1 text-base font-semibold text-slate-900">
-                                                                        Work created from this collaboration
-                                                                    </h3>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="h-px w-5 bg-blue-300" />
+                                                                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
+                                                                            Project outcomes
+                                                                        </p>
+                                                                    </div>
                                                                     <p className="mt-1 text-sm text-slate-600">
                                                                         See how this idea became finished work.
                                                                     </p>
@@ -308,13 +345,13 @@ export default function ListPostsPage() {
                                                                     {portfolioGalleries.length} portfolio{portfolioGalleries.length === 1 ? "" : "s"}
                                                                 </span>
                                                             </div>
-                                                            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                                            <div aria-label="Linked portfolio galleries" className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2">
                                                                 {portfolioGalleries.map((portfolio) => (
                                                                     <button
                                                                         type="button"
                                                                         key={portfolio.id}
                                                                         onClick={(event) => { event.stopPropagation(); setViewingGallery({ galleryId: portfolio.id }); }}
-                                                                        className="group overflow-hidden rounded-lg border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600"
+                                                                        className="group w-64 shrink-0 snap-start overflow-hidden rounded-lg border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-72"
                                                                     >
                                                                         <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
                                                                             {portfolio.previewImageUrl ? (
@@ -385,7 +422,7 @@ export default function ListPostsPage() {
                                                             type="button"
                                                             disabled
                                                             title={applyButtonTitle}
-                                                            className="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-slate-300 px-5 py-2.5 text-sm font-medium text-slate-600 sm:w-auto"
+                                                            className={`inline-flex w-full cursor-not-allowed items-center justify-center rounded-md px-5 py-2.5 text-sm font-medium sm:w-auto ${applicationStatus ? applicationStatusClassName(applicationStatus) : "bg-slate-300 text-slate-600"}`}
                                                         >
                                                             {applyButtonLabel}
                                                         </button>
@@ -511,12 +548,16 @@ export default function ListPostsPage() {
                                 >
                                     This is your post, so you cannot apply to it.
                                 </p>
-                            ) : selectedPost.hasCurrentUserApplied ? (
+                            ) : applicationStatusForPost(selectedPost) ? (
                                 <p
                                     role="status"
-                                    className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800"
+                                    className={`rounded-md p-4 text-sm ${applicationStatusClassName(applicationStatusForPost(selectedPost)!)}`}
                                 >
-                                    You have already applied to this post.
+                                    {applicationStatusForPost(selectedPost) === "Accepted"
+                                        ? "Your application was accepted."
+                                        : applicationStatusForPost(selectedPost) === "Rejected"
+                                            ? "Your application was rejected."
+                                            : "Your application is pending."}
                                 </p>
                             ) : (
                                 <ApplicationForm
