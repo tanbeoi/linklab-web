@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { ProfileWorkRows } from "@/components/profile-work-rows";
+import { ProfileAvatar } from "@/components/profile-avatar";
+import { UserProfileLink } from "@/components/user-profile-link";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import type { Gallery } from "@/types/galleries";
@@ -15,10 +17,6 @@ type ProfileData = {
     submittedApplications: number;
     receivedApplications: number;
 };
-
-function ProfileAvatar() {
-    return <span aria-hidden="true" className="flex size-20 items-center justify-center rounded-full border-4 border-white bg-slate-100 text-slate-500 shadow-sm sm:size-24"><svg viewBox="0 0 24 24" fill="currentColor" className="size-11 sm:size-14"><circle cx="12" cy="8" r="3.5" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0Z" /></svg></span>;
-}
 
 function countLabel(count: number, singular: string) {
     return `${count} ${count === 1 ? singular : `${singular}s`}`;
@@ -68,7 +66,7 @@ export default function ProfilePage() {
                 <div className="h-24 bg-gradient-to-r from-amber-100 via-violet-100 to-blue-100 sm:h-32" />
                 <div className="relative px-6 pb-7 sm:px-8">
                     <div className="-mt-10 flex flex-wrap items-end justify-between gap-5 sm:-mt-12">
-                        <div className="flex items-end gap-4"><ProfileAvatar /><div className="pb-1"><p className="text-sm font-semibold text-slate-500">YOUR LINKLAB PROFILE</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">{user.displayName}</h1></div></div>
+                        <div className="flex items-end gap-4"><Link href="/profile/avatar" aria-label="Edit profile photo" title="Edit profile photo" className="group relative shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><ProfileAvatar imageUrl={user.avatarImageUrl} focalPointX={user.avatarFocalPointX} focalPointY={user.avatarFocalPointY} zoom={user.avatarZoom} className="size-20 border-4 border-white transition group-hover:brightness-75 sm:size-24" iconClassName="size-11 sm:size-14" /><span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-slate-950/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" className="size-7 sm:size-8"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></span></Link><div className="pb-1"><p className="text-sm font-semibold text-slate-500">YOUR LINKLAB PROFILE</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl"><UserProfileLink userId={user.id}>{user.displayName}</UserProfileLink></h1></div></div>
                         <div className="flex flex-wrap gap-3">
                             <Link href={`/profiles/${user.id}`} className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">View public profile ↗</Link>
                             <Link href="/posts/new" className="rounded-md bg-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-amber-700">Create collab post</Link>

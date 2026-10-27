@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/contexts/auth-context";
+import { ProfileAvatar } from "@/components/profile-avatar";
 
 const desktopLinkClassName =
     "rounded-md px-2 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900";
@@ -13,23 +14,9 @@ const desktopLinkClassName =
 const mobileLinkClassName =
     "block rounded-md px-3 py-3 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900";
 
-function ProfileAvatar() {
-    return (
-        <span
-            aria-hidden="true"
-            className="flex size-9 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-500 shadow-sm transition group-hover:border-blue-200 group-hover:bg-blue-50 group-hover:text-blue-700"
-        >
-            <svg viewBox="0 0 24 24" fill="currentColor" className="size-5">
-                <circle cx="12" cy="8" r="3.5" />
-                <path d="M5.5 20a6.5 6.5 0 0 1 13 0Z" />
-            </svg>
-        </span>
-    );
-}
-
 export function Navbar() {
     const router = useRouter();
-    const { isAuthenticated, isLoading, logout } = useAuth();
+    const { user, isAuthenticated, isLoading, logout } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     useEffect(() => {
@@ -136,7 +123,7 @@ export function Navbar() {
                                         title="Your profile"
                                         className="group ml-1 rounded-full p-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                                     >
-                                        <ProfileAvatar />
+                                        <ProfileAvatar imageUrl={user?.avatarImageUrl} focalPointX={user?.avatarFocalPointX} focalPointY={user?.avatarFocalPointY} zoom={user?.avatarZoom} className="size-9 transition group-hover:border-blue-200 group-hover:bg-blue-50 group-hover:text-blue-700" iconClassName="size-5" />
                                     </Link>
                                     <button
                                         type="button"
@@ -232,7 +219,7 @@ export function Navbar() {
                                             Public Galleries
                                         </Link>
                                         <Link href="/profile" onClick={closeMenu} className="flex items-center gap-3 rounded-md px-3 py-3 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900">
-                                            <ProfileAvatar />
+                                            <ProfileAvatar imageUrl={user?.avatarImageUrl} focalPointX={user?.avatarFocalPointX} focalPointY={user?.avatarFocalPointY} zoom={user?.avatarZoom} className="size-9" iconClassName="size-5" />
                                             Your profile
                                         </Link>
                                         <button

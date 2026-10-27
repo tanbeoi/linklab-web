@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { ProfileWorkRows } from "@/components/profile-work-rows";
+import { ProfileAvatar } from "@/components/profile-avatar";
+import { UserProfileLink } from "@/components/user-profile-link";
 import { apiRequest } from "@/lib/api";
 import type { PublicProfile } from "@/types/auth";
 import type { Gallery } from "@/types/galleries";
@@ -15,10 +17,6 @@ type PublicProfileData = {
     posts: CollabPost[];
     galleries: Gallery[];
 };
-
-function ProfileAvatar() {
-    return <span aria-hidden="true" className="flex size-20 items-center justify-center rounded-full border-4 border-white bg-slate-100 text-slate-500 shadow-sm sm:size-24"><svg viewBox="0 0 24 24" fill="currentColor" className="size-11 sm:size-14"><circle cx="12" cy="8" r="3.5" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0Z" /></svg></span>;
-}
 
 export default function PublicProfilePage() {
     const { userId } = useParams<{ userId: string }>();
@@ -57,8 +55,8 @@ export default function PublicProfilePage() {
                 <div className="h-24 bg-gradient-to-r from-amber-100 via-violet-100 to-blue-100 sm:h-32" />
                 <div className="relative px-6 pb-7 sm:px-8">
                     <div className="-mt-10 flex items-end gap-4 sm:-mt-12">
-                        <ProfileAvatar />
-                        <div className="pb-1"><p className="text-sm font-semibold text-slate-500">LINKLAB PROFILE</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">{data.profile.displayName}</h1></div>
+                        <ProfileAvatar imageUrl={data.profile.avatarImageUrl} focalPointX={data.profile.avatarFocalPointX} focalPointY={data.profile.avatarFocalPointY} zoom={data.profile.avatarZoom} className="size-20 border-4 border-white sm:size-24" iconClassName="size-11 sm:size-14" />
+                        <div className="pb-1"><p className="text-sm font-semibold text-slate-500">LINKLAB PROFILE</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl"><UserProfileLink userId={data.profile.id}>{data.profile.displayName}</UserProfileLink></h1></div>
                     </div>
                     <p className="mt-5 max-w-2xl leading-7 text-slate-600">Collaboration posts, moodboards, and portfolio work.</p>
                 </div>

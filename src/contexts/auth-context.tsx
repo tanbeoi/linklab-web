@@ -22,6 +22,10 @@ type AuthContextValue = {
     // login saves token and user after login or registration
     login: (authResponse: AuthResponse) => void;
 
+    // Keeps account UI, especially the navigation avatar, in sync after an
+    // authenticated account setting is saved.
+    updateUser: (user: AuthUser) => void;
+
     // remove token and clear the user 
     logout: () => void;
 };
@@ -42,6 +46,10 @@ export function AuthProvider({
     const login = useCallback((authResponse: AuthResponse) => {
         localStorage.setItem("linklab_token", authResponse.token);
         setUser(authResponse.user);
+    }, []);
+
+    const updateUser = useCallback((updatedUser: AuthUser) => {
+        setUser(updatedUser);
     }, []);
 
     const logout = useCallback(() => {
@@ -135,6 +143,7 @@ export function AuthProvider({
                 isAuthenticated: user !== null,
                 isLoading,
                 login,
+                updateUser,
                 logout,
             }}
         >
