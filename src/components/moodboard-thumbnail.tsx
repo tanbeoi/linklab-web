@@ -6,11 +6,17 @@ import Image from "next/image";
 type MoodboardThumbnailProps = {
     src: string;
     alt: string;
+    focalPointX?: number;
+    focalPointY?: number;
+    zoom?: number;
 };
 
 export function MoodboardThumbnail({
     src,
     alt,
+    focalPointX = 50,
+    focalPointY = 50,
+    zoom = 1,
 }: MoodboardThumbnailProps) {
     const [hasError, setHasError] = useState(false);
 
@@ -33,6 +39,11 @@ export function MoodboardThumbnail({
             fill
             sizes="(max-width: 640px) 33vw, 220px"
             className="object-cover"
+            style={{
+                objectPosition: `${focalPointX}% ${focalPointY}%`,
+                transform: `scale(${zoom})`,
+                transformOrigin: `${focalPointX}% ${focalPointY}%`,
+            }}
             onError={() => setHasError(true)}
         />
     );

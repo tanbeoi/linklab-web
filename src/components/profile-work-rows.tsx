@@ -79,7 +79,7 @@ function GalleryCard({ gallery, isOwner }: { gallery: Gallery; isOwner: boolean 
     return (
         <Link href={href} className="group block overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
             <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
-                {gallery.previewImageUrl ? <MoodboardThumbnail src={gallery.previewImageUrl} alt={`Preview for ${gallery.title}`} /> : <div className="flex h-full items-center justify-center px-4 text-center text-sm text-slate-500">No images yet</div>}
+                {gallery.previewImageUrl ? <MoodboardThumbnail src={gallery.previewImageUrl} alt={`Preview for ${gallery.title}`} focalPointX={gallery.thumbnailFocalPointX} focalPointY={gallery.thumbnailFocalPointY} zoom={gallery.thumbnailZoom} /> : <div className="flex h-full items-center justify-center px-4 text-center text-sm text-slate-500">No images yet</div>}
             </div>
             <div className="p-4">
                 <div className="flex items-center justify-between gap-2">

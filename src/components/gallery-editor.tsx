@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -17,11 +18,15 @@ import {
     type GalleryPurpose,
     type Photo,
     type AddPhotoToGalleryRequest,
+    type CreateGalleryThumbnailUploadUrlResponse,
     type CreatePhotoUploadUrlRequest,
     type CreatePhotoUploadUrlResponse,
+    type GalleryThumbnailResponse,
     type UpdatePhotoCaptionsRequest,
     type UpdatePhotoBoardPositionRequest,
     type UpdateGalleryCollabPostRequest,
+    type UpdateGalleryThumbnailFrameRequest,
+    type UpdateGalleryThumbnailSourceRequest,
     type UpdateGalleryRequest,
 } from "@/types/galleries";
 import type { CollabPost, MyApplication, PagedResponse } from "@/types/posts";
@@ -465,6 +470,11 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                         <input id="gallery-title" name="title" defaultValue={gallery.title} maxLength={150} required className="mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" />
                         <label className="mt-4 block text-sm font-medium" htmlFor="gallery-description">Description</label>
                         <textarea id="gallery-description" name="description" defaultValue={gallery.description ?? ""} maxLength={2000} rows={4} className="mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" />
+                        <ThumbnailSettings
+                            gallery={gallery}
+                            photos={photos}
+                            onUpdated={(thumbnail) => setGallery((current) => current ? { ...current, ...thumbnail } : current)}
+                        />
                         <label className="mt-4 block text-sm font-medium" htmlFor="gallery-purpose">Gallery type</label>
                         <select id="gallery-purpose" name="purpose" defaultValue={gallery.purpose} className="mt-1.5 w-full rounded-md border border-slate-300 bg-white px-3 py-2">
                             {Object.entries(galleryPurposeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -482,7 +492,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                             {settingsFeedback.message}
                         </p>}
                         {Object.keys(captionDrafts).length > 0 && <p className="mt-4 text-xs text-amber-700">You have unsaved photo caption changes.</p>}
-                        <button type="submit" disabled={isSaving} className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving changes…" : "Save changes"}</button>
+                        <button type="submit" disabled={isSaving} className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving gallery details…" : "Save gallery details"}</button>
                     </form>
 
                     <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -508,6 +518,315 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
             </div>
         </main>
     );
+}
+
+type ThumbnailSource = "automatic" | "photo" | "custom";
+
+type ThumbnailDraft = {
+    source: ThumbnailSource;
+    photoId: string | null;
+    customObjectKey: string | null;
+    previewImageUrl: string | null;
+    focalPointX: number;
+    focalPointY: number;
+    zoom: number;
+};
+
+function thumbnailSourceFor(gallery: Gallery): ThumbnailSource {
+    if (gallery.hasCustomThumbnail) return "custom";
+    if (gallery.thumbnailPhotoId) return "photo";
+    return "automatic";
+}
+
+function clampThumbnailFrame(value: number) {
+    return Math.min(100, Math.max(0, value));
+}
+
+function ThumbnailSettings({
+    gallery,
+    photos,
+    onUpdated,
+}: {
+    gallery: Gallery;
+    photos: Photo[];
+    onUpdated: (thumbnail: GalleryThumbnailResponse) => void;
+}) {
+    const thumbnailFileInputRef = useRef<HTMLInputElement>(null);
+    const previewRef = useRef<HTMLDivElement>(null);
+    const dragStartRef = useRef<{ x: number; y: number; focalPointX: number; focalPointY: number } | null>(null);
+    const [isOpen, setIsOpen] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [feedback, setFeedback] = useState("");
+    const [draft, setDraft] = useState<ThumbnailDraft | null>(null);
+
+    function openEditor() {
+        setFeedback("");
+        setDraft({
+            source: thumbnailSourceFor(gallery),
+            photoId: gallery.thumbnailPhotoId,
+            customObjectKey: null,
+            previewImageUrl: gallery.previewImageUrl,
+            focalPointX: gallery.thumbnailFocalPointX ?? 50,
+            focalPointY: gallery.thumbnailFocalPointY ?? 50,
+            zoom: gallery.thumbnailZoom ?? 1,
+        });
+        setIsOpen(true);
+    }
+
+    const automaticPhoto = [...photos]
+        .sort((left, right) => left.sortOrder - right.sortOrder || left.createdAtUtc.localeCompare(right.createdAtUtc))[0];
+    const selectedPhoto = draft?.source === "photo"
+        ? photos.find((photo) => photo.id === draft.photoId) ?? null
+        : null;
+    const previewImageUrl = draft?.source === "automatic"
+        ? automaticPhoto?.imageUrl ?? null
+        : draft?.source === "photo"
+            ? selectedPhoto?.imageUrl ?? null
+            : draft?.previewImageUrl ?? null;
+
+    async function uploadCustomThumbnail(event: ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+
+        if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+            setFeedback("Choose a JPEG, PNG, or WebP image.");
+            return;
+        }
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
+            setFeedback("Choose an image smaller than 10 MB.");
+            return;
+        }
+
+        setFeedback("");
+        setIsUploading(true);
+        try {
+            const uploadDetails = await apiRequest<CreateGalleryThumbnailUploadUrlResponse>(
+                `/api/galleries/${gallery.id}/thumbnail/upload-url`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({ fileName: file.name, contentType: file.type } satisfies CreatePhotoUploadUrlRequest),
+                },
+            );
+            const s3Response = await fetch(uploadDetails.uploadUrl, {
+                method: "PUT",
+                headers: { "Content-Type": file.type },
+                body: file,
+            });
+            if (!s3Response.ok) throw new Error("S3 could not upload this image. Please try again.");
+
+            setDraft((current) => current ? {
+                ...current,
+                source: "custom",
+                photoId: null,
+                customObjectKey: uploadDetails.objectKey,
+                previewImageUrl: uploadDetails.previewImageUrl,
+                focalPointX: 50,
+                focalPointY: 50,
+                zoom: 1,
+            } : current);
+        } catch (cause) {
+            setFeedback(errorMessage(cause, "Could not upload the thumbnail."));
+        } finally {
+            setIsUploading(false);
+        }
+    }
+
+    function choosePhoto(photo: Photo) {
+        setDraft((current) => current ? {
+            ...current,
+            source: "photo",
+            photoId: photo.id,
+            customObjectKey: null,
+            previewImageUrl: photo.imageUrl,
+            focalPointX: 50,
+            focalPointY: 50,
+            zoom: 1,
+        } : current);
+    }
+
+    function useAutomaticPhoto() {
+        setDraft((current) => current ? {
+            ...current,
+            source: "automatic",
+            photoId: null,
+            customObjectKey: null,
+            previewImageUrl: automaticPhoto?.imageUrl ?? null,
+            focalPointX: 50,
+            focalPointY: 50,
+            zoom: 1,
+        } : current);
+    }
+
+    function updateFrame(field: "focalPointX" | "focalPointY" | "zoom", value: number) {
+        setDraft((current) => current ? { ...current, [field]: value } : current);
+    }
+
+    function startReframe(event: React.PointerEvent<HTMLDivElement>) {
+        if (!draft || !previewImageUrl) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        dragStartRef.current = {
+            x: event.clientX,
+            y: event.clientY,
+            focalPointX: draft.focalPointX,
+            focalPointY: draft.focalPointY,
+        };
+    }
+
+    function reframeFromDrag(event: React.PointerEvent<HTMLDivElement>) {
+        if (!dragStartRef.current || !previewRef.current) return;
+        const bounds = previewRef.current.getBoundingClientRect();
+        const horizontalDelta = ((event.clientX - dragStartRef.current.x) / bounds.width) * 100;
+        const verticalDelta = ((event.clientY - dragStartRef.current.y) / bounds.height) * 100;
+        setDraft((current) => current ? {
+            ...current,
+            focalPointX: clampThumbnailFrame(dragStartRef.current!.focalPointX - horizontalDelta),
+            focalPointY: clampThumbnailFrame(dragStartRef.current!.focalPointY - verticalDelta),
+        } : current);
+    }
+
+    function finishReframe() {
+        dragStartRef.current = null;
+    }
+
+    async function saveThumbnail() {
+        if (!draft) return;
+        if (draft.source === "custom" && !draft.customObjectKey && !gallery.hasCustomThumbnail) {
+            setFeedback("Upload an image before using a custom thumbnail.");
+            return;
+        }
+
+        const originalSource = thumbnailSourceFor(gallery);
+        const sourceChanged = draft.source !== originalSource ||
+            (draft.source === "photo" && draft.photoId !== gallery.thumbnailPhotoId) ||
+            (draft.source === "custom" && draft.customObjectKey !== null);
+
+        setFeedback("");
+        setIsSaving(true);
+        try {
+            let savedThumbnail: GalleryThumbnailResponse | null = null;
+            if (sourceChanged) {
+                const request: UpdateGalleryThumbnailSourceRequest = draft.source === "photo"
+                    ? { photoId: draft.photoId }
+                    : draft.source === "custom"
+                        ? { objectKey: draft.customObjectKey }
+                        : {};
+                savedThumbnail = await apiRequest<GalleryThumbnailResponse>(`/api/galleries/${gallery.id}/thumbnail`, {
+                    method: "PATCH",
+                    body: JSON.stringify(request),
+                });
+            }
+
+            const frameRequest: UpdateGalleryThumbnailFrameRequest = {
+                focalPointX: draft.focalPointX,
+                focalPointY: draft.focalPointY,
+                zoom: draft.zoom,
+            };
+            savedThumbnail = await apiRequest<GalleryThumbnailResponse>(`/api/galleries/${gallery.id}/thumbnail/frame`, {
+                method: "PATCH",
+                body: JSON.stringify(frameRequest),
+            });
+
+            onUpdated(savedThumbnail);
+            setIsOpen(false);
+        } catch (cause) {
+            setFeedback(errorMessage(cause, "Could not save the thumbnail."));
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    return <>
+        <section className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-3">
+            <div className="flex items-center gap-3">
+                <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-slate-200">
+                    {gallery.previewImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={gallery.previewImageUrl} alt="Current gallery thumbnail" className="size-full object-cover" style={{ objectPosition: `${gallery.thumbnailFocalPointX ?? 50}% ${gallery.thumbnailFocalPointY ?? 50}%`, transform: `scale(${gallery.thumbnailZoom ?? 1})`, transformOrigin: `${gallery.thumbnailFocalPointX ?? 50}% ${gallery.thumbnailFocalPointY ?? 50}%` }} />
+                    ) : <div className="flex size-full items-center justify-center text-xs text-slate-500">None</div>}
+                </div>
+                <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-semibold text-slate-800">Gallery thumbnail</h3>
+                    <p className="mt-0.5 text-xs leading-5 text-slate-500">Choose an image and adjust its crop for gallery cards.</p>
+                </div>
+            </div>
+            <button type="button" onClick={openEditor} className="mt-3 text-sm font-medium text-blue-700 hover:text-blue-800 hover:underline">Change thumbnail</button>
+        </section>
+
+        {isOpen && draft && createPortal(<div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" aria-labelledby="thumbnail-editor-title">
+            <section className="max-h-[calc(100dvh-2rem)] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+                <div className="flex items-start justify-between gap-5">
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Gallery thumbnail</p>
+                        <h2 id="thumbnail-editor-title" className="mt-1 text-xl font-semibold text-slate-900">Choose and reframe your thumbnail</h2>
+                        <p className="mt-1 text-sm text-slate-600">This only changes the image shown on gallery cards. It does not crop or change your gallery photos.</p>
+                    </div>
+                    <button type="button" onClick={() => setIsOpen(false)} className="rounded-full p-1 text-xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-900" aria-label="Close thumbnail editor">×</button>
+                </div>
+
+                <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                    <div>
+                        <div
+                            ref={previewRef}
+                            onPointerDown={startReframe}
+                            onPointerMove={reframeFromDrag}
+                            onPointerUp={finishReframe}
+                            onPointerCancel={finishReframe}
+                            className={`relative aspect-[4/3] overflow-hidden rounded-xl bg-slate-100 ${previewImageUrl ? "cursor-grab touch-none active:cursor-grabbing" : ""}`}
+                        >
+                            {previewImageUrl ? <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={previewImageUrl} alt="Thumbnail crop preview" className="size-full object-cover" draggable={false} style={{ objectPosition: `${draft.focalPointX}% ${draft.focalPointY}%`, transform: `scale(${draft.zoom})`, transformOrigin: `${draft.focalPointX}% ${draft.focalPointY}%` }} />
+                                <div className="pointer-events-none absolute inset-3 rounded-md border border-white/80 shadow-[0_0_0_9999px_rgba(15,23,42,0.12)]" />
+                                <p className="pointer-events-none absolute bottom-3 left-3 rounded bg-slate-950/65 px-2 py-1 text-xs font-medium text-white">Drag to reframe</p>
+                            </> : <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-500">Choose an existing gallery photo or upload an image to start.</div>}
+                        </div>
+
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                            <label className="text-sm font-medium text-slate-700">Horizontal
+                                <input type="range" min="0" max="100" value={draft.focalPointX} onChange={(event) => updateFrame("focalPointX", Number(event.target.value))} className="mt-2 w-full accent-blue-600" />
+                            </label>
+                            <label className="text-sm font-medium text-slate-700">Vertical
+                                <input type="range" min="0" max="100" value={draft.focalPointY} onChange={(event) => updateFrame("focalPointY", Number(event.target.value))} className="mt-2 w-full accent-blue-600" />
+                            </label>
+                            <label className="text-sm font-medium text-slate-700">Zoom
+                                <input type="range" min="1" max="3" step="0.05" value={draft.zoom} onChange={(event) => updateFrame("zoom", Number(event.target.value))} className="mt-2 w-full accent-blue-600" />
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 className="text-sm font-semibold text-slate-800">Image source</h3>
+                        <button type="button" onClick={useAutomaticPhoto} className={`mt-3 flex w-full items-center gap-3 rounded-lg border p-2 text-left transition ${draft.source === "automatic" ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-slate-200 hover:border-slate-300"}`}>
+                            <div className="relative size-12 shrink-0 overflow-hidden rounded bg-slate-100">{automaticPhoto ? <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={automaticPhoto.imageUrl} alt="" className="size-full object-cover" />
+                            </> : null}</div>
+                            <span><span className="block text-sm font-medium">Use first gallery photo</span><span className="block text-xs text-slate-500">Automatic default</span></span>
+                        </button>
+                        <button type="button" onClick={() => thumbnailFileInputRef.current?.click()} disabled={isUploading} className="mt-3 w-full rounded-lg border border-dashed border-blue-300 bg-blue-50 px-3 py-2.5 text-sm font-medium text-blue-700 hover:border-blue-500 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60">{isUploading ? "Uploading image…" : "Upload a thumbnail image"}</button>
+                        <input ref={thumbnailFileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={uploadCustomThumbnail} />
+                        {photos.length > 0 && <div className="mt-5">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Gallery photos</p>
+                            <div className="mt-2 grid grid-cols-3 gap-2">
+                                {photos.map((photo) => <button type="button" key={photo.id} onClick={() => choosePhoto(photo)} title="Use this photo as the thumbnail" className={`relative aspect-square overflow-hidden rounded-md border-2 transition ${draft.source === "photo" && draft.photoId === photo.id ? "border-blue-500 ring-2 ring-blue-100" : "border-transparent hover:border-slate-300"}`}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={photo.imageUrl} alt={photo.caption || "Gallery photo"} className="size-full object-cover" />
+                                </button>)}
+                            </div>
+                        </div>}
+                    </div>
+                </div>
+
+                {feedback && <p role="alert" className="mt-5 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{feedback}</p>}
+                <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
+                    <button type="button" disabled={isSaving} onClick={() => setIsOpen(false)} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">Cancel</button>
+                    <button type="button" disabled={isSaving || isUploading} onClick={() => { void saveThumbnail(); }} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300">{isSaving ? "Saving thumbnail…" : "Save thumbnail"}</button>
+                </div>
+            </section>
+        </div>, document.body)}
+    </>;
 }
 
 function InsertPhotoButton({ label, isUploading, onClick }: { label: string; isUploading: boolean; onClick: () => void }) {

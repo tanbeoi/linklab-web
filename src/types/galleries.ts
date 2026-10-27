@@ -20,6 +20,11 @@ export type Gallery = {
     photoCount: number;
     ownerDisplayName: string;
     previewImageUrl: string | null;
+    thumbnailPhotoId: string | null;
+    hasCustomThumbnail: boolean;
+    thumbnailFocalPointX: number;
+    thumbnailFocalPointY: number;
+    thumbnailZoom: number;
 };
 
 export type Photo = {
@@ -65,6 +70,33 @@ export type CreatePhotoUploadUrlResponse = {
     objectKey: string;
     uploadUrl: string;
     expiresAtUtc: string;
+};
+
+export type CreateGalleryThumbnailUploadUrlResponse = {
+    objectKey: string;
+    uploadUrl: string;
+    previewImageUrl: string;
+    expiresAtUtc: string;
+};
+
+export type UpdateGalleryThumbnailSourceRequest = {
+    photoId?: string | null;
+    objectKey?: string | null;
+};
+
+export type UpdateGalleryThumbnailFrameRequest = {
+    focalPointX: number;
+    focalPointY: number;
+    zoom: number;
+};
+
+export type GalleryThumbnailResponse = {
+    thumbnailPhotoId: string | null;
+    hasCustomThumbnail: boolean;
+    previewImageUrl: string | null;
+    thumbnailFocalPointX: number;
+    thumbnailFocalPointY: number;
+    thumbnailZoom: number;
 };
 
 export type AddPhotoToGalleryRequest = {

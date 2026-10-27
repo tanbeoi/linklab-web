@@ -113,6 +113,9 @@ export default function MyGalleriesPage() {
                                         <MoodboardThumbnail
                                             src={gallery.previewImageUrl}
                                             alt={`Preview for ${gallery.title}`}
+                                            focalPointX={gallery.thumbnailFocalPointX}
+                                            focalPointY={gallery.thumbnailFocalPointY}
+                                            zoom={gallery.thumbnailZoom}
                                         />
                                     ) : (
                                         <div className="flex h-full items-center justify-center p-4 text-center text-sm text-slate-500">

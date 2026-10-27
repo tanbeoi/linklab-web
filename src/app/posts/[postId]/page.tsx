@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 
 import { GalleryViewer, type GalleryViewerSource } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
+import { UserProfileLink } from "@/components/user-profile-link";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import type { CollabPost } from "@/types/posts";
@@ -86,7 +87,7 @@ export default function PostPage() {
                 </div>
                 <p className="mt-5 whitespace-pre-wrap break-words text-lg leading-8 text-slate-600">{post.description}</p>
                 <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-200 pt-5 text-sm text-slate-500">
-                    <p>{post.isRemote ? "Remote collaboration" : post.location}</p><p>Posted by {post.ownerDisplayName}</p><p>{new Date(post.createdAtUtc).toLocaleDateString()}</p>
+                    <p>{post.isRemote ? "Remote collaboration" : post.location}</p><p>Posted by <UserProfileLink userId={post.userId}>{post.ownerDisplayName}</UserProfileLink></p><p>{new Date(post.createdAtUtc).toLocaleDateString()}</p>
                 </div>
             </header>
 
@@ -103,10 +104,10 @@ export default function PostPage() {
             {portfolios.length > 0 && <section className="mt-6 overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-5 shadow-sm sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Project outcomes</p><p className="mt-2 text-slate-600">See how the shared idea became finished work.</p></div><span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-blue-700 shadow-sm">{portfolios.length} portfolio{portfolios.length === 1 ? "" : "s"}</span></div>
                 <div aria-label="Linked portfolio galleries" className="mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-2">
-                    {portfolios.map((portfolio) => <button type="button" key={portfolio.id} onClick={() => setViewingGallery({ galleryId: portfolio.id })} className="group w-72 shrink-0 snap-start overflow-hidden rounded-xl border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-80">
-                        <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">{portfolio.previewImageUrl ? <MoodboardThumbnail src={portfolio.previewImageUrl} alt={`Preview of ${portfolio.title}`} /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Portfolio gallery</div>}</div>
-                        <div className="p-4"><div className="flex items-center justify-between gap-2"><h3 className="truncate font-semibold group-hover:text-blue-700">{portfolio.title}</h3><span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Portfolio</span></div><p className="mt-1 text-sm text-slate-600">By {portfolio.ownerDisplayName}</p></div>
-                    </button>)}
+                    {portfolios.map((portfolio) => <article key={portfolio.id} role="link" tabIndex={0} onClick={() => setViewingGallery({ galleryId: portfolio.id })} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setViewingGallery({ galleryId: portfolio.id }); } }} className="group w-72 shrink-0 snap-start cursor-pointer overflow-hidden rounded-xl border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-80">
+                        <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">{portfolio.previewImageUrl ? <MoodboardThumbnail src={portfolio.previewImageUrl} alt={`Preview of ${portfolio.title}`} focalPointX={portfolio.thumbnailFocalPointX} focalPointY={portfolio.thumbnailFocalPointY} zoom={portfolio.thumbnailZoom} /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Portfolio gallery</div>}</div>
+                        <div className="p-4"><div className="flex items-center justify-between gap-2"><h3 className="truncate font-semibold group-hover:text-blue-700">{portfolio.title}</h3><span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Portfolio</span></div><p className="mt-1 text-sm text-slate-600">By <UserProfileLink userId={portfolio.ownerId}>{portfolio.ownerDisplayName}</UserProfileLink></p></div>
+                    </article>)}
                 </div>
             </section>}
         </article>

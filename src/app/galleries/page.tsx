@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 
 import { GalleryViewer } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
+import { UserProfileLink } from "@/components/user-profile-link";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import type { Gallery } from "@/types/galleries";
@@ -130,6 +131,9 @@ function PublicGalleriesContent() {
                                         <MoodboardThumbnail
                                             src={gallery.previewImageUrl}
                                             alt={`Preview for ${gallery.title}`}
+                                            focalPointX={gallery.thumbnailFocalPointX}
+                                            focalPointY={gallery.thumbnailFocalPointY}
+                                            zoom={gallery.thumbnailZoom}
                                         />
                                     ) : (
                                         <div className="flex h-full items-center justify-center p-4 text-center text-sm text-slate-500">
@@ -143,9 +147,7 @@ function PublicGalleriesContent() {
                                 </h2>
 
                                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                                    <p className="font-medium text-slate-700">
-                                        {gallery.ownerDisplayName}
-                                    </p>
+                                    <p className="font-medium text-slate-700"><UserProfileLink userId={gallery.ownerId}>{gallery.ownerDisplayName}</UserProfileLink></p>
                                     <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
                                         {gallery.purpose === 1
                                             ? "Moodboard"

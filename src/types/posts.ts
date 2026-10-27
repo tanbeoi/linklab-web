@@ -17,9 +17,13 @@ export type CollabPost = {
 export type PortfolioGalleryPreview = {
     id: string;
     title: string;
+    ownerId: string;
     ownerDisplayName: string;
     previewImageUrl: string | null;
     photoCount: number;
+    thumbnailFocalPointX: number;
+    thumbnailFocalPointY: number;
+    thumbnailZoom: number;
 };
 
 export type PagedResponse<T> = {

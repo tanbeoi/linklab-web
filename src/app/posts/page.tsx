@@ -7,6 +7,7 @@ import { ApplicationForm } from "@/components/application-form";
 import { useAuth } from "@/contexts/auth-context";
 import { GalleryViewer, type GalleryViewerSource } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
+import { UserProfileLink } from "@/components/user-profile-link";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -347,17 +348,22 @@ export default function ListPostsPage() {
                                                             </div>
                                                             <div aria-label="Linked portfolio galleries" className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2">
                                                                 {portfolioGalleries.map((portfolio) => (
-                                                                    <button
-                                                                        type="button"
+                                                                    <article
                                                                         key={portfolio.id}
+                                                                        role="link"
+                                                                        tabIndex={0}
                                                                         onClick={(event) => { event.stopPropagation(); setViewingGallery({ galleryId: portfolio.id }); }}
-                                                                        className="group w-64 shrink-0 snap-start overflow-hidden rounded-lg border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-72"
+                                                                        onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); setViewingGallery({ galleryId: portfolio.id }); } }}
+                                                                        className="group w-64 shrink-0 snap-start cursor-pointer overflow-hidden rounded-lg border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-72"
                                                                     >
                                                                         <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
                                                                             {portfolio.previewImageUrl ? (
                                                                                 <MoodboardThumbnail
                                                                                     src={portfolio.previewImageUrl}
                                                                                     alt={`Preview of ${portfolio.title}`}
+                                                                                    focalPointX={portfolio.thumbnailFocalPointX}
+                                                                                    focalPointY={portfolio.thumbnailFocalPointY}
+                                                                                    zoom={portfolio.thumbnailZoom}
                                                                                 />
                                                                             ) : (
                                                                                 <div className="flex h-full items-center justify-center text-sm text-slate-500">
@@ -375,10 +381,10 @@ export default function ListPostsPage() {
                                                                                 </span>
                                                                             </div>
                                                                             <p className="mt-1 text-sm text-slate-600">
-                                                                                By {portfolio.ownerDisplayName}
+                                                                                By <UserProfileLink userId={portfolio.ownerId}>{portfolio.ownerDisplayName}</UserProfileLink>
                                                                             </p>
                                                                         </div>
-                                                                    </button>
+                                                                    </article>
                                                                 ))}
                                                             </div>
                                                         </section>
@@ -389,7 +395,7 @@ export default function ListPostsPage() {
                                                             {post.isRemote ? "Remote" : post.location}
                                                         </p>
 
-                                                        <p>Posted by {post.ownerDisplayName}</p>
+                                                        <p>Posted by <UserProfileLink userId={post.userId}>{post.ownerDisplayName}</UserProfileLink></p>
 
                                                         <p>
                                                             {new Date(
@@ -535,7 +541,7 @@ export default function ListPostsPage() {
                                 </p>
 
                                 <p>
-                                    Posted by {selectedPost.ownerDisplayName}
+                                    Posted by <UserProfileLink userId={selectedPost.userId}>{selectedPost.ownerDisplayName}</UserProfileLink>
                                 </p>
                             </div>
                         </div>

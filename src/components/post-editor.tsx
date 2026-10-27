@@ -5,11 +5,12 @@ import Link from "next/link";
 
 import { useAuth } from "@/contexts/auth-context";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
+import { UserProfileLink } from "@/components/user-profile-link";
 import { apiRequest } from "@/lib/api";
 import type { Gallery, Photo } from "@/types/galleries";
 import type { CollabPost, PortfolioGalleryPreview, UpdateCollabPostRequest } from "@/types/posts";
 
-type GalleryPreviewSource = Pick<Gallery, "title" | "previewImageUrl" | "photoCount">;
+type GalleryPreviewSource = Pick<Gallery, "title" | "previewImageUrl" | "photoCount" | "thumbnailFocalPointX" | "thumbnailFocalPointY" | "thumbnailZoom">;
 type LinkedPortfolio = PortfolioGalleryPreview & { ownedGallery: Gallery | null };
 
 function GalleryPreview({ gallery, photos }: { gallery: GalleryPreviewSource; photos: Photo[] }) {
@@ -23,7 +24,13 @@ function GalleryPreview({ gallery, photos }: { gallery: GalleryPreviewSource; ph
     const remainingCount = Math.max(gallery.photoCount - imageSources.length, 0);
     return <div className={`grid aspect-[16/6] overflow-hidden rounded-lg bg-slate-100 ${imageSources.length === 1 ? "grid-cols-1" : imageSources.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
         {imageSources.map((imageUrl, index) => <div key={`${imageUrl}-${index}`} className="relative min-w-0 overflow-hidden">
-            <MoodboardThumbnail src={imageUrl} alt={`Preview ${index + 1} for ${gallery.title}`} />
+            <MoodboardThumbnail
+                src={imageUrl}
+                alt={`Preview ${index + 1} for ${gallery.title}`}
+                focalPointX={photos.length === 0 ? gallery.thumbnailFocalPointX : undefined}
+                focalPointY={photos.length === 0 ? gallery.thumbnailFocalPointY : undefined}
+                zoom={photos.length === 0 ? gallery.thumbnailZoom : undefined}
+            />
             {index === 2 && remainingCount > 0 && <span className="absolute inset-0 flex items-center justify-center bg-slate-950/55 text-xl font-semibold text-white">+{remainingCount}</span>}
         </div>)}
     </div>;
@@ -169,9 +176,13 @@ export function PostEditor({ postId }: { postId: string }) {
             .map((gallery) => ({
                 id: gallery.id,
                 title: gallery.title,
+                ownerId: gallery.ownerId,
                 ownerDisplayName: gallery.ownerDisplayName,
                 previewImageUrl: gallery.previewImageUrl,
                 photoCount: gallery.photoCount,
+                thumbnailFocalPointX: gallery.thumbnailFocalPointX,
+                thumbnailFocalPointY: gallery.thumbnailFocalPointY,
+                thumbnailZoom: gallery.thumbnailZoom,
                 ownedGallery: gallery,
             })),
     ];
@@ -229,7 +240,7 @@ export function PostEditor({ postId }: { postId: string }) {
                                 <div className="min-w-0"><p className="truncate font-semibold">{portfolio.title}</p><p className="mt-1 text-sm text-slate-600">{portfolio.photoCount} {portfolio.photoCount === 1 ? "photo" : "photos"}</p></div>
                                 {portfolio.ownedGallery && <Link href={`/galleries/${portfolio.id}/edit`} className="shrink-0 text-sm font-semibold text-blue-700 hover:underline">Edit</Link>}
                             </div>
-                            <p className="mt-2 text-sm text-slate-500">By {portfolio.ownerDisplayName}</p>
+                            <p className="mt-2 text-sm text-slate-500">By <UserProfileLink userId={portfolio.ownerId}>{portfolio.ownerDisplayName}</UserProfileLink></p>
                         </div>
                     </article>)}</div> : <p className="mt-3 text-sm leading-6 text-slate-600">Link portfolio work to show the outcome of this collaboration.</p>}
                     <div className="mt-4 border-t border-blue-200 pt-4"><label className="text-sm font-medium text-slate-700" htmlFor="portfolio-to-link">Add a portfolio</label><select id="portfolio-to-link" value={selectedPortfolioId} onChange={(event) => setSelectedPortfolioId(event.target.value)} className="mt-2 w-full rounded-md border border-blue-200 bg-white px-3 py-2 text-sm"><option value="">Choose an unlinked portfolio</option>{availablePortfolios.map((gallery) => <option key={gallery.id} value={gallery.id}>{gallery.title}</option>)}</select><button type="button" onClick={() => void linkGallery(selectedPortfolioId)} disabled={!selectedPortfolioId || isSaving} className="mt-3 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300">Add portfolio</button></div>
