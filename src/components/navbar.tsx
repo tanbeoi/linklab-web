@@ -70,7 +70,7 @@ export function Navbar() {
                     </button>
 
                     <Link
-                        href="/"
+                        href="/dashboard"
                         className="flex items-center justify-self-center gap-2 text-xl font-bold tracking-tight text-slate-900"
                     >
                         <Image
@@ -88,7 +88,7 @@ export function Navbar() {
 
                 <div className="hidden items-center justify-between sm:flex">
                     <Link
-                        href="/"
+                        href="/dashboard"
                         className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900"
                     >
                         <Image
@@ -173,7 +173,7 @@ export function Navbar() {
                         className="relative flex h-dvh w-72 max-w-[85vw] flex-col bg-white p-5 shadow-xl"
                     >
                         <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-2 text-lg font-bold text-slate-900">
+                            <Link href="/dashboard" onClick={closeMenu} className="flex items-center gap-2 text-lg font-bold text-slate-900">
                                 <Image
                                     src="/linklab-logo-mark.png"
                                     alt=""
@@ -182,7 +182,7 @@ export function Navbar() {
                                     className="size-6"
                                 />
                                 LinkLab
-                            </span>
+                            </Link>
                             <button
                                 type="button"
                                 onClick={closeMenu}
