@@ -26,7 +26,9 @@ export function ProfileAvatar({
                 <img
                     src={imageUrl}
                     alt={alt}
-                    className="size-full object-cover"
+                    draggable={false}
+                    onDragStart={(event) => event.preventDefault()}
+                    className="size-full select-none object-cover"
                     style={{
                         objectPosition: `${focalPointX}% ${focalPointY}%`,
                         transform: `scale(${zoom})`,

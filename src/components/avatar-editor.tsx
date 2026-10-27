@@ -78,13 +78,16 @@ export function AvatarEditor() {
 
     function reframeFromDrag(event: React.PointerEvent<HTMLDivElement>) {
         if (!dragStartRef.current || !previewRef.current) return;
+        // Capture this before scheduling React state. Pointer-up may clear the
+        // ref before the updater runs on a quick drag and release.
+        const dragStart = dragStartRef.current;
         const bounds = previewRef.current.getBoundingClientRect();
-        const horizontalDelta = ((event.clientX - dragStartRef.current.x) / bounds.width) * 100;
-        const verticalDelta = ((event.clientY - dragStartRef.current.y) / bounds.height) * 100;
+        const horizontalDelta = ((event.clientX - dragStart.x) / bounds.width) * 100;
+        const verticalDelta = ((event.clientY - dragStart.y) / bounds.height) * 100;
         setDraft((current) => current ? {
             ...current,
-            focalPointX: clampFrame(dragStartRef.current!.focalPointX - horizontalDelta),
-            focalPointY: clampFrame(dragStartRef.current!.focalPointY - verticalDelta),
+            focalPointX: clampFrame(dragStart.focalPointX - horizontalDelta),
+            focalPointY: clampFrame(dragStart.focalPointY - verticalDelta),
         } : current);
     }
 

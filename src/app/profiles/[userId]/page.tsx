@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 
 import { ProfileWorkRows } from "@/components/profile-work-rows";
 import { ProfileAvatar } from "@/components/profile-avatar";
+import { ProfileCover } from "@/components/profile-cover";
 import { UserProfileLink } from "@/components/user-profile-link";
 import { apiRequest } from "@/lib/api";
 import type { PublicProfile } from "@/types/auth";
@@ -52,7 +53,7 @@ export default function PublicProfilePage() {
     return <main className="bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
         <div className="mx-auto max-w-6xl">
             <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                <div className="h-24 bg-gradient-to-r from-amber-100 via-violet-100 to-blue-100 sm:h-32" />
+                <ProfileCover imageUrl={data.profile.coverImageUrl} focalPointX={data.profile.coverFocalPointX} focalPointY={data.profile.coverFocalPointY} zoom={data.profile.coverZoom} alt={`${data.profile.displayName}'s profile cover`} className="h-24 sm:h-32" />
                 <div className="relative px-6 pb-7 sm:px-8">
                     <div className="-mt-10 flex items-end gap-4 sm:-mt-12">
                         <ProfileAvatar imageUrl={data.profile.avatarImageUrl} focalPointX={data.profile.avatarFocalPointX} focalPointY={data.profile.avatarFocalPointY} zoom={data.profile.avatarZoom} className="size-20 border-4 border-white sm:size-24" iconClassName="size-11 sm:size-14" />
