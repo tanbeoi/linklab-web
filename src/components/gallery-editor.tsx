@@ -434,7 +434,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     />
                 ) : (
                     <section aria-label="Gallery photos" className="overflow-hidden rounded-lg bg-white shadow-sm">
-                        <InsertPhotoButton label="Add your first photo" isUploading={isUploading} onClick={() => openFilePicker({ insertAtStart: true })} />
+                        <InsertPhotoButton label={photos.length === 0 ? "Add your first photo" : "Add photo at the top"} isUploading={isUploading} onClick={() => openFilePicker({ insertAtStart: true })} />
                         {photoUploadPreview?.insertionPoint && "insertAtStart" in photoUploadPreview.insertionPoint && <UploadProgressPreview imageUrl={photoUploadPreview.imageUrl} progress={photoUploadPreview.progress} alt="Uploading gallery photo" className="w-full" imageClassName="h-auto" />}
                         {photos.map((photo) => (<Fragment key={photo.id}>
                             <div key={photo.id}>
