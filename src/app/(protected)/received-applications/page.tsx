@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { apiRequest } from "@/lib/api";
+import { UserProfileLink } from "@/components/user-profile-link";
 import type {
     ApplicationDecisionResponse,
     ApplicationStatus,
@@ -180,7 +181,7 @@ export default function ReceivedApplicationsPage() {
                                                 {application.postTitle}
                                             </h2>
                                             <p className="mt-1 text-sm font-medium text-slate-600">
-                                                From {application.applicantDisplayName}
+                                                From <UserProfileLink userId={application.applicantUserId}>{application.applicantDisplayName}</UserProfileLink>
                                             </p>
                                         </div>
                                         <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${statusClassName(application.status)}`}>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { apiRequest } from "@/lib/api";
+import { UserProfileLink } from "@/components/user-profile-link";
 import type {
     ApplicationDecisionResponse,
     ApplicationStatus,
@@ -156,10 +157,10 @@ export function ApplicantsList({ postId }: ApplicantsListProps) {
                                     <div className="flex flex-wrap items-start justify-between gap-3">
                                         <div>
                                             <h2 className="break-words text-xl font-semibold text-slate-900">
-                                                {application.applicantDisplayName}
+                                                <UserProfileLink userId={application.applicantUserId}>{application.applicantDisplayName}</UserProfileLink>
                                             </h2>
                                             <p className="mt-1 break-all text-sm text-slate-600">
-                                                {application.applicantEmail}
+                                                <UserProfileLink userId={application.applicantUserId}>{application.applicantEmail}</UserProfileLink>
                                             </p>
                                         </div>
                                         <span

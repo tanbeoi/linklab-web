@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { ApplicationForm } from "@/components/application-form";
+import { UserProfileLink } from "@/components/user-profile-link";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import type { CollabPost } from "@/types/posts";
@@ -98,7 +99,7 @@ export default function ApplyToPostPage() {
                                 : post.location}
                         </p>
 
-                        <p>Posted by {post.ownerDisplayName}</p>
+                        <p>Posted by <UserProfileLink userId={post.userId}>{post.ownerDisplayName}</UserProfileLink></p>
                     </div>
 
                     <div className="mt-6">

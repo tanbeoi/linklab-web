@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { MoodboardComposition } from "@/components/moodboard-board";
 import { CollaborationOrigin } from "@/components/collaboration-origin";
+import { UserProfileLink } from "@/components/user-profile-link";
 import type { Gallery, Photo } from "@/types/galleries";
 
 export default function PublicGalleryPage() {
@@ -38,7 +39,7 @@ export default function PublicGalleryPage() {
             <header className="mb-8">
                 <p className="text-xs font-medium uppercase tracking-widest text-slate-300">{content.gallery.purpose === 1 ? "Moodboard" : "Portfolio"}</p>
                 <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">{content.gallery.title}</h1>
-                <p className="mt-3 text-slate-300">By {content.gallery.ownerDisplayName}</p>
+                <p className="mt-3 text-slate-300">By <UserProfileLink userId={content.gallery.ownerId} className="text-slate-100">{content.gallery.ownerDisplayName}</UserProfileLink></p>
                 {content.gallery.description && <p className="mt-5 max-w-3xl whitespace-pre-wrap text-slate-200">{content.gallery.description}</p>}
             </header>
             <div className="mb-6"><CollaborationOrigin gallery={content.gallery} /></div>

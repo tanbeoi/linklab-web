@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { apiRequest } from "@/lib/api";
+import { UserProfileLink } from "@/components/user-profile-link";
 import type { Gallery } from "@/types/galleries";
 import type { CollabPost } from "@/types/posts";
 
 type CollaborationOriginProps = {
     gallery: Pick<
         Gallery,
-        "purpose" | "collabPostId" | "collabPostTitle" | "ownerDisplayName"
+        "purpose" | "collabPostId" | "collabPostTitle" | "ownerId" | "ownerDisplayName"
     >;
 };
 
@@ -59,9 +60,6 @@ export function CollaborationOrigin({ gallery }: CollaborationOriginProps) {
     const label = isMoodboard
         ? "Creative direction for this collaboration"
         : "This project results from this collaboration";
-    const ownerContext = isMoodboard
-        ? "Moodboard linked to this collaboration"
-        : `Portfolio by ${gallery.ownerDisplayName || "the gallery owner"}`;
     // Amber consistently represents the collaboration post itself, regardless
     // of whether the linked gallery is a purple moodboard or blue portfolio.
     const panelClasses = "border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 shadow-amber-950/10";
@@ -84,7 +82,7 @@ export function CollaborationOrigin({ gallery }: CollaborationOriginProps) {
                 )}
                 <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
                     <span>{post?.isRemote ? "Remote collaboration" : post?.location ?? "Collaboration project"}</span>
-                    <span>{ownerContext}</span>
+                    {isMoodboard ? <span>Moodboard linked to this collaboration</span> : <span>Portfolio by {gallery.ownerDisplayName ? <UserProfileLink userId={gallery.ownerId}>{gallery.ownerDisplayName}</UserProfileLink> : "the gallery owner"}</span>}
                 </div>
                 <Link
                     href={`/posts/${gallery.collabPostId}`}

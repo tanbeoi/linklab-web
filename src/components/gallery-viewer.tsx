@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { MoodboardComposition } from "@/components/moodboard-board";
 import { CollaborationOrigin } from "@/components/collaboration-origin";
+import { UserProfileLink } from "@/components/user-profile-link";
 import type { Gallery, Photo } from "@/types/galleries";
 
 export type GalleryViewerSource =
@@ -90,7 +91,7 @@ export function GalleryViewer({ source, onClose }: {
                     <p className="text-xs font-medium uppercase tracking-widest text-slate-300">{gallery?.purpose === 1 ? "Moodboard" : "Gallery"}</p>
                     <h2 id="gallery-viewer-title" className="mt-2 break-words text-2xl font-semibold sm:text-3xl">{gallery?.title || "Loading gallery…"}</h2>
                     {gallery && <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-base text-slate-200">
-                        <p data-owner-id={gallery.ownerId}>By {gallery.ownerDisplayName || "Gallery creator"}</p>
+                        <p data-owner-id={gallery.ownerId}>By <UserProfileLink userId={gallery.ownerId} className="text-slate-100">{gallery.ownerDisplayName || "Gallery creator"}</UserProfileLink></p>
                         {gallery.ownerId === user?.id && <Link href={`/galleries/${gallery.id}/edit`} className="text-sm font-medium text-white underline underline-offset-4 hover:text-slate-200">Edit gallery</Link>}
                     </div>}
                     {gallery?.description && <p className="mt-4 whitespace-pre-wrap break-words text-slate-300">{gallery.description}</p>}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { useAuth } from "@/contexts/auth-context";
+import { UserProfileLink } from "@/components/user-profile-link";
 
 export default function DashboardPage() {
     const { user } = useAuth();
@@ -23,7 +24,7 @@ export default function DashboardPage() {
                 <section className="mt-8" aria-labelledby="linklab-process-heading">
                     <div className="flex flex-wrap items-end justify-between gap-3">
                         <div><p className="text-sm font-semibold text-slate-500">THE LINKLAB LOOP</p><h2 id="linklab-process-heading" className="mt-1 text-2xl font-bold tracking-tight">Three parts, one creative journey.</h2></div>
-                        <p className="text-sm text-slate-500">Hey {user?.displayName}, start wherever you are.</p>
+                        <p className="text-sm text-slate-500">Hey {user ? <UserProfileLink userId={user.id}>{user.displayName}</UserProfileLink> : "there"}, start wherever you are.</p>
                     </div>
                     <div className="mt-5 grid gap-4 lg:grid-cols-3">
                         <Link href="/posts" className="group rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-amber-600">
