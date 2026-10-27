@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
+import { uploadToSignedUrl } from "@/lib/direct-upload";
+import { UploadProgressRing } from "@/components/upload-progress-preview";
 import type { AuthUser } from "@/types/auth";
 
 type AvatarUploadUrlResponse = {
@@ -23,6 +25,9 @@ type AvatarDraft = {
     focalPointY: number;
     zoom: number;
 };
+
+const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
 function clampFrame(value: number) {
     return Math.min(100, Math.max(0, value));
@@ -52,6 +57,7 @@ export function AvatarEditor() {
     const [draftUserId, setDraftUserId] = useState<string | null>(null);
     const [feedback, setFeedback] = useState("");
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     // The authenticated user arrives after the provider restores the session.
@@ -100,19 +106,30 @@ export function AvatarEditor() {
         event.target.value = "";
         if (!file) return;
 
+        if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+            setFeedback("Choose a JPEG, PNG, or WebP image.");
+            return;
+        }
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
+            setFeedback("Choose an image smaller than 10 MB.");
+            return;
+        }
+
         setFeedback("");
+        const localPreviewUrl = URL.createObjectURL(file);
+        setDraft({ objectKey: null, imageUrl: localPreviewUrl, focalPointX: 50, focalPointY: 50, zoom: 1 });
+        setUploadProgress(0);
         setIsUploading(true);
         try {
             const upload = await apiRequest<AvatarUploadUrlResponse>("/api/auth/avatar/upload-url", {
                 method: "POST",
                 body: JSON.stringify({ fileName: file.name, contentType: file.type }),
             });
-            const uploadResponse = await fetch(upload.uploadUrl, {
-                method: "PUT",
-                headers: { "Content-Type": file.type },
-                body: file,
+            await uploadToSignedUrl({
+                uploadUrl: upload.uploadUrl,
+                file,
+                onProgress: setUploadProgress,
             });
-            if (!uploadResponse.ok) throw new Error("The image could not be uploaded to storage.");
 
             setDraft({
                 objectKey: upload.objectKey,
@@ -122,8 +139,10 @@ export function AvatarEditor() {
                 zoom: 1,
             });
         } catch (cause) {
+            setDraft(user ? draftFor(user) : null);
             setFeedback(errorMessage(cause, "Could not upload the profile photo."));
         } finally {
+            setUploadProgress(null);
             setIsUploading(false);
         }
     }
@@ -186,9 +205,10 @@ export function AvatarEditor() {
                         >
                             {draft.imageUrl ? <>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={draft.imageUrl} alt="Avatar crop preview" draggable={false} className="size-full object-cover" style={{ objectPosition: `${draft.focalPointX}% ${draft.focalPointY}%`, transform: `scale(${draft.zoom})`, transformOrigin: `${draft.focalPointX}% ${draft.focalPointY}%` }} />
+                                <img src={draft.imageUrl} alt="Avatar crop preview" draggable={false} onDragStart={(event) => event.preventDefault()} className={`size-full object-cover ${uploadProgress !== null ? "brightness-75" : ""}`} style={{ objectPosition: `${draft.focalPointX}% ${draft.focalPointY}%`, transform: `scale(${draft.zoom})`, transformOrigin: `${draft.focalPointX}% ${draft.focalPointY}%` }} />
                                 <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-black/10" />
                                 <p className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-slate-950/70 px-3 py-1.5 text-xs font-medium text-white">Drag to reframe</p>
+                                {uploadProgress !== null && <UploadProgressRing progress={uploadProgress} />}
                             </> : <div className="flex size-full flex-col items-center justify-center gap-3 px-8 text-center text-sm text-slate-500"><ProfileAvatar className="size-20" iconClassName="size-11" /><span>Upload a photo to create your avatar.</span></div>}
                         </div>
 
@@ -208,7 +228,7 @@ export function AvatarEditor() {
                     <aside className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Image source</p>
                         <h2 className="mt-2 text-lg font-semibold">Your avatar</h2>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">Use a JPG, PNG, or WebP image. You can upload a replacement at any time.</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">Use a JPG, PNG, or WebP image up to 10 MB. You can upload a replacement at any time.</p>
                         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="mt-5 w-full rounded-lg border border-dashed border-blue-300 bg-blue-50 px-3 py-3 text-sm font-semibold text-blue-700 transition hover:border-blue-500 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60">{isUploading ? "Uploading photo…" : draft.imageUrl ? "Replace profile photo" : "Upload profile photo"}</button>
                         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={uploadAvatar} />
 

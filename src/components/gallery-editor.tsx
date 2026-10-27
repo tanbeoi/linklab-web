@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, Fragment, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useAuth } from "@/contexts/auth-context";
@@ -12,6 +12,8 @@ import {
     type MoodboardLayout,
 } from "@/components/moodboard-board";
 import { apiRequest } from "@/lib/api";
+import { uploadToSignedUrl } from "@/lib/direct-upload";
+import { UploadProgressPreview, UploadProgressRing } from "@/components/upload-progress-preview";
 import {
     galleryPurposeLabels,
     type Gallery,
@@ -32,6 +34,7 @@ import {
 import type { CollabPost, MyApplication, PagedResponse } from "@/types/posts";
 
 type InsertionPoint = { insertAtStart: true } | { insertAfterPhotoId: string };
+type PhotoUploadPreview = { imageUrl: string; progress: number; insertionPoint: InsertionPoint };
 
 type CollaborationOption = { id: string; title: string };
 
@@ -45,6 +48,7 @@ function errorMessage(error: unknown, fallback: string) {
 export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const { user } = useAuth();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const photoPreviewUrlRef = useRef<string | null>(null);
     const [gallery, setGallery] = useState<Gallery | null>(null);
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({});
@@ -53,6 +57,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [photoUploadPreview, setPhotoUploadPreview] = useState<PhotoUploadPreview | null>(null);
     const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
     const [isPublishing, setIsPublishing] = useState(false);
     const [error, setError] = useState("");
@@ -107,6 +112,14 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         fileInputRef.current?.click();
     }
 
+    function clearPhotoUploadPreview() {
+        setPhotoUploadPreview(null);
+        if (photoPreviewUrlRef.current) {
+            URL.revokeObjectURL(photoPreviewUrlRef.current);
+            photoPreviewUrlRef.current = null;
+        }
+    }
+
     async function uploadPhoto(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
         event.target.value = "";
@@ -124,6 +137,11 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
 
         setError("");
         setNotice("");
+        clearPhotoUploadPreview();
+        const imageUrl = URL.createObjectURL(file);
+        photoPreviewUrlRef.current = imageUrl;
+        const previewInsertionPoint = insertionPoint;
+        setPhotoUploadPreview({ imageUrl, progress: 0, insertionPoint: previewInsertionPoint });
         setIsUploading(true);
 
         try {
@@ -138,15 +156,11 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
 
             // This request goes straight from the browser to S3. It deliberately
             // does not use apiRequest, which would attach the LinkLab API token.
-            const s3Response = await fetch(uploadDetails.uploadUrl, {
-                method: "PUT",
-                headers: { "Content-Type": file.type },
-                body: file,
+            await uploadToSignedUrl({
+                uploadUrl: uploadDetails.uploadUrl,
+                file,
+                onProgress: (progress) => setPhotoUploadPreview((current) => current ? { ...current, progress } : current),
             });
-
-            if (!s3Response.ok) {
-                throw new Error("S3 could not upload this image. Please try again.");
-            }
 
             const addPhotoRequest: AddPhotoToGalleryRequest = {
                 photoId: uploadDetails.photoId,
@@ -179,6 +193,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         } catch (cause) {
             setError(errorMessage(cause, "Could not upload the photo."));
         } finally {
+            clearPhotoUploadPreview();
             setIsUploading(false);
         }
     }
@@ -399,6 +414,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
             <div className={`mx-auto grid w-full max-w-none gap-6 ${gallery.purpose === 1 ? "xl:grid-cols-[15rem_minmax(0,1fr)_22rem]" : "xl:grid-cols-[minmax(0,1fr)_22rem]"} xl:items-start`}>
                 {gallery.purpose === 1 && <UnsortedTray
                     photos={photos.filter((photo) => photo.boardX === null || photo.boardY === null)}
+                    uploadPreview={photoUploadPreview}
                     isUploading={isUploading}
                     deletingPhotoId={deletingPhotoId}
                     onUpload={() => openFilePicker()}
@@ -419,7 +435,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 ) : (
                     <section aria-label="Gallery photos" className="overflow-hidden rounded-lg bg-white shadow-sm">
                         <InsertPhotoButton label="Add your first photo" isUploading={isUploading} onClick={() => openFilePicker({ insertAtStart: true })} />
-                        {photos.map((photo) => (
+                        {photoUploadPreview?.insertionPoint && "insertAtStart" in photoUploadPreview.insertionPoint && <UploadProgressPreview imageUrl={photoUploadPreview.imageUrl} progress={photoUploadPreview.progress} alt="Uploading gallery photo" className="w-full" imageClassName="h-auto" />}
+                        {photos.map((photo) => (<Fragment key={photo.id}>
                             <div key={photo.id}>
                                 <figure className="relative">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -459,7 +476,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                                 </figure>
                                 <InsertPhotoButton label="Upload photo here" isUploading={isUploading} onClick={() => openFilePicker({ insertAfterPhotoId: photo.id })} />
                             </div>
-                        ))}
+                            {photoUploadPreview?.insertionPoint && "insertAfterPhotoId" in photoUploadPreview.insertionPoint && photoUploadPreview.insertionPoint.insertAfterPhotoId === photo.id && <UploadProgressPreview imageUrl={photoUploadPreview.imageUrl} progress={photoUploadPreview.progress} alt="Uploading gallery photo" className="w-full" imageClassName="h-auto" />}
+                        </Fragment>))}
                     </section>
                 )}
 
@@ -556,6 +574,7 @@ function ThumbnailSettings({
     const dragStartRef = useRef<{ x: number; y: number; focalPointX: number; focalPointY: number } | null>(null);
     const [isOpen, setIsOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [thumbnailUploadProgress, setThumbnailUploadProgress] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [feedback, setFeedback] = useState("");
     const [draft, setDraft] = useState<ThumbnailDraft | null>(null);
@@ -600,6 +619,18 @@ function ThumbnailSettings({
         }
 
         setFeedback("");
+        const localPreviewUrl = URL.createObjectURL(file);
+        setDraft((current) => current ? {
+            ...current,
+            source: "custom",
+            photoId: null,
+            customObjectKey: null,
+            previewImageUrl: localPreviewUrl,
+            focalPointX: 50,
+            focalPointY: 50,
+            zoom: 1,
+        } : current);
+        setThumbnailUploadProgress(0);
         setIsUploading(true);
         try {
             const uploadDetails = await apiRequest<CreateGalleryThumbnailUploadUrlResponse>(
@@ -609,12 +640,11 @@ function ThumbnailSettings({
                     body: JSON.stringify({ fileName: file.name, contentType: file.type } satisfies CreatePhotoUploadUrlRequest),
                 },
             );
-            const s3Response = await fetch(uploadDetails.uploadUrl, {
-                method: "PUT",
-                headers: { "Content-Type": file.type },
-                body: file,
+            await uploadToSignedUrl({
+                uploadUrl: uploadDetails.uploadUrl,
+                file,
+                onProgress: setThumbnailUploadProgress,
             });
-            if (!s3Response.ok) throw new Error("S3 could not upload this image. Please try again.");
 
             setDraft((current) => current ? {
                 ...current,
@@ -629,6 +659,7 @@ function ThumbnailSettings({
         } catch (cause) {
             setFeedback(errorMessage(cause, "Could not upload the thumbnail."));
         } finally {
+            setThumbnailUploadProgress(null);
             setIsUploading(false);
         }
     }
@@ -676,13 +707,14 @@ function ThumbnailSettings({
 
     function reframeFromDrag(event: React.PointerEvent<HTMLDivElement>) {
         if (!dragStartRef.current || !previewRef.current) return;
+        const dragStart = dragStartRef.current;
         const bounds = previewRef.current.getBoundingClientRect();
-        const horizontalDelta = ((event.clientX - dragStartRef.current.x) / bounds.width) * 100;
-        const verticalDelta = ((event.clientY - dragStartRef.current.y) / bounds.height) * 100;
+        const horizontalDelta = ((event.clientX - dragStart.x) / bounds.width) * 100;
+        const verticalDelta = ((event.clientY - dragStart.y) / bounds.height) * 100;
         setDraft((current) => current ? {
             ...current,
-            focalPointX: clampThumbnailFrame(dragStartRef.current!.focalPointX - horizontalDelta),
-            focalPointY: clampThumbnailFrame(dragStartRef.current!.focalPointY - verticalDelta),
+            focalPointX: clampThumbnailFrame(dragStart.focalPointX - horizontalDelta),
+            focalPointY: clampThumbnailFrame(dragStart.focalPointY - verticalDelta),
         } : current);
     }
 
@@ -777,9 +809,10 @@ function ThumbnailSettings({
                         >
                             {previewImageUrl ? <>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={previewImageUrl} alt="Thumbnail crop preview" className="size-full object-cover" draggable={false} style={{ objectPosition: `${draft.focalPointX}% ${draft.focalPointY}%`, transform: `scale(${draft.zoom})`, transformOrigin: `${draft.focalPointX}% ${draft.focalPointY}%` }} />
+                                <img src={previewImageUrl} alt="Thumbnail crop preview" className={`size-full object-cover ${thumbnailUploadProgress !== null ? "brightness-75" : ""}`} draggable={false} onDragStart={(event) => event.preventDefault()} style={{ objectPosition: `${draft.focalPointX}% ${draft.focalPointY}%`, transform: `scale(${draft.zoom})`, transformOrigin: `${draft.focalPointX}% ${draft.focalPointY}%` }} />
                                 <div className="pointer-events-none absolute inset-3 rounded-md border border-white/80 shadow-[0_0_0_9999px_rgba(15,23,42,0.12)]" />
                                 <p className="pointer-events-none absolute bottom-3 left-3 rounded bg-slate-950/65 px-2 py-1 text-xs font-medium text-white">Drag to reframe</p>
+                                {thumbnailUploadProgress !== null && <UploadProgressRing progress={thumbnailUploadProgress} />}
                             </> : <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-500">Choose an existing gallery photo or upload an image to start.</div>}
                         </div>
 
@@ -837,6 +870,7 @@ function InsertPhotoButton({ label, isUploading, onClick }: { label: string; isU
 
 function UnsortedTray({
     photos,
+    uploadPreview,
     isUploading,
     deletingPhotoId,
     onUpload,
@@ -844,6 +878,7 @@ function UnsortedTray({
     onDelete,
 }: {
     photos: Photo[];
+    uploadPreview: PhotoUploadPreview | null;
     isUploading: boolean;
     deletingPhotoId: string | null;
     onUpload: () => void;
@@ -857,15 +892,16 @@ function UnsortedTray({
                     <h2 className="font-semibold">Unsorted</h2>
                     <p className="mt-1 text-xs text-slate-500">Drag an image onto the board.</p>
                 </div>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{photos.length}</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{photos.length + (uploadPreview ? 1 : 0)}</span>
             </div>
             <button type="button" disabled={isUploading} onClick={onUpload} className="mt-4 w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400">
                 {isUploading ? "Uploading…" : "＋ Upload image"}
             </button>
-            {photos.length === 0 ? (
+            {photos.length === 0 && !uploadPreview ? (
                 <p className="py-8 text-center text-sm text-slate-500">Uploaded images will appear here until you place them on the board.</p>
             ) : (
                 <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-1">
+                    {uploadPreview && <div className="overflow-hidden rounded-md border border-slate-200 bg-slate-50"><UploadProgressPreview imageUrl={uploadPreview.imageUrl} progress={uploadPreview.progress} alt="Uploading moodboard image" className="aspect-[4/3] w-full" /></div>}
                     {photos.map((photo, index) => (
                         <div
                             key={photo.id}

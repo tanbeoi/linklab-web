@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { ProfileCover } from "@/components/profile-cover";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
+import { uploadToSignedUrl } from "@/lib/direct-upload";
+import { UploadProgressRing } from "@/components/upload-progress-preview";
 import type { AuthUser } from "@/types/auth";
 
 type CoverUploadUrlResponse = {
@@ -23,6 +25,9 @@ type CoverDraft = {
     focalPointY: number;
     zoom: number;
 };
+
+const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
 function clampFrame(value: number) {
     return Math.min(100, Math.max(0, value));
@@ -52,6 +57,7 @@ export function ProfileCoverEditor() {
     const [draftUserId, setDraftUserId] = useState<string | null>(null);
     const [feedback, setFeedback] = useState("");
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     if (user && draftUserId !== user.id) {
@@ -90,19 +96,24 @@ export function ProfileCoverEditor() {
         const file = event.target.files?.[0];
         event.target.value = "";
         if (!file) return;
+        if (!SUPPORTED_IMAGE_TYPES.has(file.type)) { setFeedback("Choose a JPEG, PNG, or WebP image."); return; }
+        if (file.size > MAX_IMAGE_SIZE_BYTES) { setFeedback("Choose an image smaller than 10 MB."); return; }
         setFeedback("");
+        const localPreviewUrl = URL.createObjectURL(file);
+        setDraft({ objectKey: null, imageUrl: localPreviewUrl, focalPointX: 50, focalPointY: 50, zoom: 1 });
+        setUploadProgress(0);
         setIsUploading(true);
         try {
             const upload = await apiRequest<CoverUploadUrlResponse>("/api/auth/cover/upload-url", {
                 method: "POST",
                 body: JSON.stringify({ fileName: file.name, contentType: file.type }),
             });
-            const uploadResponse = await fetch(upload.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
-            if (!uploadResponse.ok) throw new Error("The image could not be uploaded to storage.");
+            await uploadToSignedUrl({ uploadUrl: upload.uploadUrl, file, onProgress: setUploadProgress });
             setDraft({ objectKey: upload.objectKey, imageUrl: upload.previewImageUrl, focalPointX: 50, focalPointY: 50, zoom: 1 });
         } catch (cause) {
+            setDraft(user ? draftFor(user) : null);
             setFeedback(errorMessage(cause, "Could not upload the cover image."));
-        } finally { setIsUploading(false); }
+        } finally { setUploadProgress(null); setIsUploading(false); }
     }
 
     async function saveCover() {
@@ -139,7 +150,7 @@ export function ProfileCoverEditor() {
                 <div className="grid gap-8 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
                     <div>
                         <div ref={previewRef} onPointerDown={startReframe} onPointerMove={reframeFromDrag} onPointerUp={finishReframe} onPointerCancel={finishReframe} className={`relative aspect-[3/1] w-full overflow-hidden rounded-2xl border-4 border-white bg-gradient-to-r from-amber-100 via-violet-100 to-blue-100 shadow-xl ${draft.imageUrl ? "cursor-grab touch-none active:cursor-grabbing" : ""}`}>
-                            {draft.imageUrl ? <><ProfileCover imageUrl={draft.imageUrl} focalPointX={draft.focalPointX} focalPointY={draft.focalPointY} zoom={draft.zoom} alt="Cover crop preview" className="size-full" /><span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-black/10" /><p className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-slate-950/70 px-3 py-1.5 text-xs font-medium text-white">Drag to reframe</p></> : <div className="flex size-full items-center justify-center px-8 text-center text-sm text-slate-500">Upload a wide image for your profile backdrop.</div>}
+                            {draft.imageUrl ? <><ProfileCover imageUrl={draft.imageUrl} focalPointX={draft.focalPointX} focalPointY={draft.focalPointY} zoom={draft.zoom} alt="Cover crop preview" className={`size-full ${uploadProgress !== null ? "brightness-75" : ""}`} /><span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-black/10" /><p className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-slate-950/70 px-3 py-1.5 text-xs font-medium text-white">Drag to reframe</p>{uploadProgress !== null && <UploadProgressRing progress={uploadProgress} tone="violet" />}</> : <div className="flex size-full items-center justify-center px-8 text-center text-sm text-slate-500">Upload a wide image for your profile backdrop.</div>}
                         </div>
                         <div className="mt-6 grid gap-4 sm:grid-cols-3">
                             <label className="text-sm font-medium text-slate-700">Horizontal<input type="range" min="0" max="100" value={draft.focalPointX} disabled={!draft.imageUrl} onChange={(event) => updateFrame("focalPointX", Number(event.target.value))} className="mt-2 w-full accent-violet-600 disabled:opacity-40" /></label>
@@ -147,7 +158,7 @@ export function ProfileCoverEditor() {
                             <label className="text-sm font-medium text-slate-700">Zoom<input type="range" min="1" max="3" step="0.05" value={draft.zoom} disabled={!draft.imageUrl} onChange={(event) => updateFrame("zoom", Number(event.target.value))} className="mt-2 w-full accent-violet-600 disabled:opacity-40" /></label>
                         </div>
                     </div>
-                    <aside className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5"><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">Image source</p><h2 className="mt-2 text-lg font-semibold">Your backdrop</h2><p className="mt-2 text-sm leading-6 text-slate-600">Use a JPG, PNG, or WebP image. A 3:1 image needs the least cropping, but any proportion is supported.</p><button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="mt-5 w-full rounded-lg border border-dashed border-violet-300 bg-violet-50 px-3 py-3 text-sm font-semibold text-violet-700 transition hover:border-violet-500 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60">{isUploading ? "Uploading image…" : draft.imageUrl ? "Replace cover image" : "Upload cover image"}</button><input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={uploadCover} /></aside>
+                    <aside className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5"><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">Image source</p><h2 className="mt-2 text-lg font-semibold">Your backdrop</h2><p className="mt-2 text-sm leading-6 text-slate-600">Use a JPG, PNG, or WebP image up to 10 MB. A 3:1 image needs the least cropping, but any proportion is supported.</p><button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="mt-5 w-full rounded-lg border border-dashed border-violet-300 bg-violet-50 px-3 py-3 text-sm font-semibold text-violet-700 transition hover:border-violet-500 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60">{isUploading ? "Uploading image…" : draft.imageUrl ? "Replace cover image" : "Upload cover image"}</button><input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={uploadCover} /></aside>
                 </div>
                 {feedback && <p role="alert" className="mx-5 mb-5 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:mx-6">{feedback}</p>}
                 <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 bg-white px-5 py-5 sm:px-6"><Link href="/profile" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</Link><button type="button" disabled={isSaving || isUploading || !draft.imageUrl} onClick={() => { void saveCover(); }} className="rounded-md bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-violet-300">{isSaving ? "Saving cover photo…" : "Save cover photo"}</button></div>
