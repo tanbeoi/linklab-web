@@ -83,8 +83,10 @@ export default function PostPage() {
                     </div>
                     {isOwner ? <Link href={`/my-posts/${post.id}/edit`} className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-950 hover:bg-amber-100">Edit post</Link>
                         : applicationStatus ? <span role="status" title={`Your application is ${applicationStatus.toLowerCase()}.`} className={`rounded-md px-4 py-2 text-sm font-medium ${applicationStatusClassName(applicationStatus)}`}>{applicationStatusLabel(applicationStatus)}</span>
+                        : post.isClosed ? <span role="status" className="rounded-md border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Closed</span>
                         : <Link href={`/posts/${post.id}/apply`} className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">Apply to collaborate</Link>}
                 </div>
+                {post.isClosed && <p role="status" className="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">This collaboration is closed and is no longer accepting new applications.</p>}
                 <p className="mt-5 whitespace-pre-wrap break-words text-lg leading-8 text-slate-600">{post.description}</p>
                 <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-200 pt-5 text-sm text-slate-500">
                     <p>{post.isRemote ? "Remote collaboration" : post.location}</p><p>Posted by <UserProfileLink userId={post.userId}>{post.ownerDisplayName}</UserProfileLink></p><p>{new Date(post.createdAtUtc).toLocaleDateString()}</p>

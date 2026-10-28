@@ -4,6 +4,7 @@ export type CollabPost = {
     description: string;
     location: string;
     isRemote: boolean;
+    isClosed: boolean;
     createdAtUtc: string;
     userId: string;
     ownerDisplayName: string;
@@ -44,6 +45,10 @@ export type CreateCollabPostRequest = {
 }
 
 export type UpdateCollabPostRequest = CreateCollabPostRequest;
+
+export type UpdatePostClosureRequest = {
+    isClosed: boolean;
+};
 
 export type ApplyToPostRequest = {
     message: string;

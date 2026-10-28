@@ -194,9 +194,12 @@ export default function ListPostsPage() {
                                     const hasAlreadyApplied = Boolean(applicationStatus);
                                     const isApplyDisabled =
                                         hasAlreadyApplied ||
+                                        post.isClosed ||
                                         isAuthLoading;
                                     const applyButtonLabel = applicationStatus
                                         ? applicationStatusLabel(applicationStatus)
+                                        : post.isClosed
+                                        ? "Closed"
                                         : isAuthLoading
                                         ? "Checking..."
                                         : "Apply";
@@ -208,6 +211,8 @@ export default function ListPostsPage() {
                                                 : "Your application is pending."
                                         : isAuthLoading
                                         ? "Checking your session..."
+                                        : post.isClosed
+                                        ? "This collaboration is no longer accepting applications."
                                         : undefined;
                                     const previewImages =
                                         post.moodboardPreviewImageUrls;
@@ -243,9 +248,7 @@ export default function ListPostsPage() {
                                             {/* Grid-cols-3 creates 3 equal columns, and col-span-2 makes the content section occupies 2 of those           */}
                                             <div className="grid gap-6 sm:grid-cols-3 sm:items-center">
                                                 <div className="min-w-0 sm:col-span-2">
-                                                    <h2 className="break-words text-xl font-semibold text-slate-900">
-                                                        {post.title}
-                                                    </h2>
+                                                    <div className="flex flex-wrap items-center gap-2"><h2 className="break-words text-xl font-semibold text-slate-900">{post.title}</h2>{post.isClosed && <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Closed</span>}</div>
 
                                                     <p className="mt-3 break-words leading-7 text-slate-600">
                                                         {truncateWords(post.description, 50)}
@@ -428,7 +431,7 @@ export default function ListPostsPage() {
                                                             type="button"
                                                             disabled
                                                             title={applyButtonTitle}
-                                                            className={`inline-flex w-full cursor-not-allowed items-center justify-center rounded-md px-5 py-2.5 text-sm font-medium sm:w-auto ${applicationStatus ? applicationStatusClassName(applicationStatus) : "bg-slate-300 text-slate-600"}`}
+                                                            className={`inline-flex w-full cursor-not-allowed items-center justify-center rounded-md px-5 py-2.5 text-sm font-medium sm:w-auto ${applicationStatus ? applicationStatusClassName(applicationStatus) : post.isClosed ? "border border-slate-300 bg-slate-100 text-slate-600" : "bg-slate-300 text-slate-600"}`}
                                                         >
                                                             {applyButtonLabel}
                                                         </button>

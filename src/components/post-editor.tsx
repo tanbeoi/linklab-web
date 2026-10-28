@@ -8,7 +8,7 @@ import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import { UserProfileLink } from "@/components/user-profile-link";
 import { apiRequest } from "@/lib/api";
 import type { Gallery, Photo } from "@/types/galleries";
-import type { CollabPost, PortfolioGalleryPreview, UpdateCollabPostRequest } from "@/types/posts";
+import type { CollabPost, PortfolioGalleryPreview, UpdateCollabPostRequest, UpdatePostClosureRequest } from "@/types/posts";
 
 type GalleryPreviewSource = Pick<Gallery, "title" | "previewImageUrl" | "photoCount" | "thumbnailFocalPointX" | "thumbnailFocalPointY" | "thumbnailZoom">;
 type LinkedPortfolio = PortfolioGalleryPreview & { ownedGallery: Gallery | null };
@@ -112,6 +112,24 @@ export function PostEditor({ postId }: { postId: string }) {
         }
     }
 
+    async function updateClosure(isClosed: boolean) {
+        setIsSaving(true);
+        setError("");
+        setNotice("");
+        try {
+            await apiRequest(`/api/posts/${postId}/closed`, {
+                method: "PATCH",
+                body: JSON.stringify({ isClosed } satisfies UpdatePostClosureRequest),
+            });
+            setPost((current) => current ? { ...current, isClosed } : current);
+            setNotice(isClosed ? "Post closed. It remains visible, but no longer accepts applications." : "Post reopened and now accepts applications.");
+        } catch (cause) {
+            setError(cause instanceof Error ? cause.message : "Could not update the post status.");
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
     async function linkGallery(galleryId: string) {
         if (!galleryId) return;
         setIsSaving(true);
@@ -208,6 +226,17 @@ export function PostEditor({ postId }: { postId: string }) {
                     <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={form.isRemote} onChange={(event) => setForm({ ...form, isRemote: event.target.checked })} /> Remote collaboration</label>
                 </div>
                 <button type="button" onClick={() => void savePost()} disabled={isSaving} className="mt-5 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-400">{isSaving ? "Saving..." : "Save post details"}</button>
+            </section>
+
+            <section className={`mt-5 rounded-xl border p-5 shadow-sm ${post.isClosed ? "border-slate-300 bg-slate-100" : "border-amber-200 bg-amber-50/70"}`}>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <p className={`text-xs font-bold uppercase tracking-[0.16em] ${post.isClosed ? "text-slate-600" : "text-amber-700"}`}>Post status</p>
+                        <h2 className="mt-1 text-xl font-semibold">{post.isClosed ? "Closed" : "Accepting applications"}</h2>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">{post.isClosed ? "This post is still visible in Collaboration Posts, but new applications are unavailable." : "Close this post when you no longer want to receive new applications."}</p>
+                    </div>
+                    <button type="button" onClick={() => void updateClosure(!post.isClosed)} disabled={isSaving} className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:bg-slate-400 disabled:text-white ${post.isClosed ? "bg-slate-800 text-white hover:bg-slate-900" : "border border-amber-300 bg-white text-amber-900 hover:bg-amber-100"}`}>{post.isClosed ? "Reopen applications" : "Close post"}</button>
+                </div>
             </section>
 
             <div className="mt-5 grid gap-5">

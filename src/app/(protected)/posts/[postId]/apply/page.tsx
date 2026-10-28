@@ -83,7 +83,7 @@ export default function ApplyToPostPage() {
             <div className="mx-auto max-w-3xl">
                 <article className="rounded-lg border border-amber-100 bg-white p-6 shadow-sm sm:p-8">
                     <h1 className="break-words text-3xl font-bold text-slate-900">
-                        {isOwnPost || hasAlreadyApplied
+                        {isOwnPost || hasAlreadyApplied || post.isClosed
                             ? post.title
                             : `Apply to ${post.title}`}
                     </h1>
@@ -116,6 +116,13 @@ export default function ApplyToPostPage() {
                                 className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800"
                             >
                                 You have already applied to this post.
+                            </p>
+                        ) : post.isClosed ? (
+                            <p
+                                role="status"
+                                className="rounded-md border border-slate-300 bg-slate-100 p-4 text-sm text-slate-700"
+                            >
+                                This collaboration is closed and is no longer accepting new applications.
                             </p>
                         ) : (
                             <ApplicationForm postId={post.id} />
