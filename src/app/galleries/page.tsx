@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { GalleryViewer } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
@@ -24,12 +24,22 @@ export default function PublicGalleriesPage() {
 
 function PublicGalleriesContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const { isAuthenticated } = useAuth();
     const [viewingGallery, setViewingGallery] = useState<{ gallery: Gallery } | null>(null);
     const [galleries, setGalleries] = useState<Gallery[]>([]);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
-    const [filter, setFilter] = useState<GalleryFilter>(() => filterFromSearch(searchParams.get("type")));
+    const filter = filterFromSearch(searchParams.get("type"));
+    const pageTitle = filter === "moodboard" ? "Public Moodboards" : filter === "portfolio" ? "Public Portfolios" : "Public Galleries";
+    const pageDescription = filter === "moodboard"
+        ? "Each collaboration post can have one moodboard, linked by its creator or an accepted collaborator. Explore published visual references and creative direction from the LinkLab community."
+        : filter === "portfolio"
+            ? "Accepted collaborators can link any number of portfolio galleries to a collaboration post. Explore published finished work and project outcomes from the LinkLab community."
+            : "A collaboration post can have one shared moodboard and any number of portfolio galleries from accepted collaborators. Explore published creative work from the LinkLab community.";
+    const createHref = filter === "moodboard" ? "/galleries/new?type=moodboard" : filter === "portfolio" ? "/galleries/new?type=portfolio" : "/galleries/new";
+    const createLabel = filter === "moodboard" ? "Create moodboard" : filter === "portfolio" ? "Create portfolio" : "Create gallery";
+    const createClassName = filter === "moodboard" ? "bg-violet-700 hover:bg-violet-800" : "bg-blue-600 hover:bg-blue-700";
 
     const visibleGalleries = galleries.filter((gallery) =>
         filter === "all" ||
@@ -76,7 +86,7 @@ function PublicGalleriesContent() {
             <div className="mx-auto max-w-5xl">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                        Public Galleries
+                        {pageTitle}
                     </h1>
                     <div className="flex flex-wrap items-center justify-end gap-3">
                         <label className="flex items-center gap-2 text-sm font-medium text-slate-600" htmlFor="gallery-filter">
@@ -84,7 +94,10 @@ function PublicGalleriesContent() {
                             <select
                                 id="gallery-filter"
                                 value={filter}
-                                onChange={(event) => setFilter(event.target.value as GalleryFilter)}
+                                onChange={(event) => {
+                                    const nextFilter = event.target.value as GalleryFilter;
+                                    router.push(nextFilter === "all" ? "/galleries" : `/galleries?type=${nextFilter}`);
+                                }}
                                 className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                             >
                                 <option value="all">All galleries</option>
@@ -92,12 +105,11 @@ function PublicGalleriesContent() {
                                 <option value="portfolio">Portfolios</option>
                             </select>
                         </label>
-                        {isAuthenticated && <Link href="/galleries/new" className="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700">Create gallery</Link>}
+                        {isAuthenticated && <Link href={createHref} className={`rounded-md px-4 py-2.5 text-sm font-medium text-white shadow-sm ${createClassName}`}>{createLabel}</Link>}
                     </div>
                 </div>
                 <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-                    Explore published creative portfolio projects and moodboards from the
-                    LinkLab community.
+                    {pageDescription}
                 </p>
 
                 {isLoading ? (

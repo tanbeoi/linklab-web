@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -13,6 +12,15 @@ const desktopLinkClassName =
 
 const mobileLinkClassName =
     "block rounded-md px-3 py-3 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900";
+
+function ThreeLinkLogoMark({ className }: { className: string }) {
+    return <svg aria-hidden="true" viewBox="0 0 32 32" className={`${className} shrink-0`} fill="none">
+        <path d="M6.5 21.5 16 10.5l9.5 8" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="6.5" cy="21.5" r="4.5" fill="#f59e0b" />
+        <circle cx="16" cy="10.5" r="4.5" fill="#7c3aed" />
+        <circle cx="25.5" cy="18.5" r="4.5" fill="#2563eb" />
+    </svg>;
+}
 
 export function Navbar() {
     const router = useRouter();
@@ -73,13 +81,7 @@ export function Navbar() {
                         href="/dashboard"
                         className="flex items-center justify-self-center gap-2 text-xl font-bold tracking-tight text-slate-900"
                     >
-                        <Image
-                            src="/linklab-logo-mark.png"
-                            alt=""
-                            width={28}
-                            height={28}
-                            className="size-7"
-                        />
+                        <ThreeLinkLogoMark className="size-7" />
                         <span>LinkLab</span>
                     </Link>
 
@@ -91,13 +93,7 @@ export function Navbar() {
                         href="/dashboard"
                         className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900"
                     >
-                        <Image
-                            src="/linklab-logo-mark.png"
-                            alt=""
-                            width={28}
-                            height={28}
-                            className="size-7"
-                        />
+                        <ThreeLinkLogoMark className="size-7" />
                         <span>LinkLab</span>
                     </Link>
 
@@ -111,11 +107,17 @@ export function Navbar() {
                                     <Link href="/posts" className={desktopLinkClassName}>
                                         Posts
                                     </Link>
+                                    <Link href="/chats" className={desktopLinkClassName}>
+                                        Chats
+                                    </Link>
                                     <Link href="/posts/new" className={desktopLinkClassName}>
                                         Create post
                                     </Link>
-                                    <Link href="/galleries" className={desktopLinkClassName}>
-                                        Public Galleries
+                                    <Link href="/galleries?type=moodboard" className={desktopLinkClassName}>
+                                        Moodboards
+                                    </Link>
+                                    <Link href="/galleries?type=portfolio" className={desktopLinkClassName}>
+                                        Portfolios
                                     </Link>
                                     <Link
                                         href="/profile"
@@ -138,8 +140,11 @@ export function Navbar() {
                                     <Link href="/posts" className={desktopLinkClassName}>
                                         Posts
                                     </Link>
-                                    <Link href="/galleries" className={desktopLinkClassName}>
-                                        Public Galleries
+                                    <Link href="/galleries?type=moodboard" className={desktopLinkClassName}>
+                                        Moodboards
+                                    </Link>
+                                    <Link href="/galleries?type=portfolio" className={desktopLinkClassName}>
+                                        Portfolios
                                     </Link>
                                     <Link href="/login" className={desktopLinkClassName}>
                                         Login
@@ -174,13 +179,7 @@ export function Navbar() {
                     >
                         <div className="flex items-center justify-between">
                             <Link href="/dashboard" onClick={closeMenu} className="flex items-center gap-2 text-lg font-bold text-slate-900">
-                                <Image
-                                    src="/linklab-logo-mark.png"
-                                    alt=""
-                                    width={24}
-                                    height={24}
-                                    className="size-6"
-                                />
+                                <ThreeLinkLogoMark className="size-6" />
                                 LinkLab
                             </Link>
                             <button
@@ -212,11 +211,17 @@ export function Navbar() {
                                         <Link href="/posts" onClick={closeMenu} className={mobileLinkClassName}>
                                             Posts
                                         </Link>
+                                        <Link href="/chats" onClick={closeMenu} className={mobileLinkClassName}>
+                                            Chats
+                                        </Link>
                                         <Link href="/posts/new" onClick={closeMenu} className={mobileLinkClassName}>
                                             Create post
                                         </Link>
-                                        <Link href="/galleries" onClick={closeMenu} className={mobileLinkClassName}>
-                                            Public Galleries
+                                        <Link href="/galleries?type=moodboard" onClick={closeMenu} className={mobileLinkClassName}>
+                                            Moodboards
+                                        </Link>
+                                        <Link href="/galleries?type=portfolio" onClick={closeMenu} className={mobileLinkClassName}>
+                                            Portfolios
                                         </Link>
                                         <Link href="/profile" onClick={closeMenu} className="flex items-center gap-3 rounded-md px-3 py-3 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900">
                                             <ProfileAvatar imageUrl={user?.avatarImageUrl} focalPointX={user?.avatarFocalPointX} focalPointY={user?.avatarFocalPointY} zoom={user?.avatarZoom} className="size-9" iconClassName="size-5" />
@@ -235,8 +240,11 @@ export function Navbar() {
                                         <Link href="/posts" onClick={closeMenu} className={mobileLinkClassName}>
                                             Posts
                                         </Link>
-                                        <Link href="/galleries" onClick={closeMenu} className={mobileLinkClassName}>
-                                            Public Galleries
+                                        <Link href="/galleries?type=moodboard" onClick={closeMenu} className={mobileLinkClassName}>
+                                            Moodboards
+                                        </Link>
+                                        <Link href="/galleries?type=portfolio" onClick={closeMenu} className={mobileLinkClassName}>
+                                            Portfolios
                                         </Link>
                                         <Link href="/login" onClick={closeMenu} className={mobileLinkClassName}>
                                             Login
