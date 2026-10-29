@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-import { ProfileWorkRows } from "@/components/profile-work-rows";
+import { ProfileContentViews } from "@/components/profile-content-views";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { ProfileCover } from "@/components/profile-cover";
 import { UserProfileLink } from "@/components/user-profile-link";
+import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
 import type { PublicProfile } from "@/types/auth";
 import type { Gallery } from "@/types/galleries";
@@ -21,6 +22,7 @@ type PublicProfileData = {
 
 export default function PublicProfilePage() {
     const { userId } = useParams<{ userId: string }>();
+    const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
     const [data, setData] = useState<PublicProfileData | null>(null);
     const [error, setError] = useState("");
 
@@ -55,15 +57,18 @@ export default function PublicProfilePage() {
             <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                 <ProfileCover imageUrl={data.profile.coverImageUrl} focalPointX={data.profile.coverFocalPointX} focalPointY={data.profile.coverFocalPointY} zoom={data.profile.coverZoom} alt={`${data.profile.displayName}'s profile cover`} className="h-24 sm:h-32" />
                 <div className="relative px-6 pb-7 sm:px-8">
-                    <div className="-mt-10 flex items-end gap-4 sm:-mt-12">
+                    <div className="-mt-10 flex flex-wrap items-end justify-between gap-4 sm:-mt-12">
+                        <div className="flex items-end gap-4">
                         <ProfileAvatar imageUrl={data.profile.avatarImageUrl} focalPointX={data.profile.avatarFocalPointX} focalPointY={data.profile.avatarFocalPointY} zoom={data.profile.avatarZoom} className="size-20 border-4 border-white sm:size-24" iconClassName="size-11 sm:size-14" />
                         <div className="pb-1"><p className="text-sm font-semibold text-slate-500">LINKLAB PROFILE</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl"><UserProfileLink userId={data.profile.id}>{data.profile.displayName}</UserProfileLink></h1></div>
+                        </div>
+                        {!isAuthLoading && isAuthenticated && user?.id !== data.profile.id && <Link href={`/chats?with=${encodeURIComponent(data.profile.id)}&name=${encodeURIComponent(data.profile.displayName)}`} className="rounded-md bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700">Start demo chat</Link>}
                     </div>
                     <p className="mt-5 max-w-2xl leading-7 text-slate-600">Collaboration posts, moodboards, and portfolio work.</p>
                 </div>
             </section>
 
-            <ProfileWorkRows posts={data.posts} galleries={data.galleries} />
+            <ProfileContentViews posts={data.posts} galleries={data.galleries} />
         </div>
     </main>;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-import { ProfileWorkRows } from "@/components/profile-work-rows";
+import { ProfileContentViews } from "@/components/profile-content-views";
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { ProfileCover } from "@/components/profile-cover";
 import { UserProfileLink } from "@/components/user-profile-link";
@@ -73,6 +73,7 @@ export default function ProfilePage() {
                         <div className="flex items-end gap-4"><Link href="/profile/avatar" aria-label="Edit profile photo" title="Edit profile photo" className="group relative shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><ProfileAvatar imageUrl={user.avatarImageUrl} focalPointX={user.avatarFocalPointX} focalPointY={user.avatarFocalPointY} zoom={user.avatarZoom} className="size-20 border-4 border-white transition group-hover:brightness-75 sm:size-24" iconClassName="size-11 sm:size-14" /><span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-slate-950/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" className="size-7 sm:size-8"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></span></Link><div className="pb-1"><p className="text-sm font-semibold text-slate-500">YOUR LINKLAB PROFILE</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl"><UserProfileLink userId={user.id}>{user.displayName}</UserProfileLink></h1></div></div>
                         <div className="flex flex-wrap gap-3">
                             <Link href={`/profiles/${user.id}`} className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">View public profile ↗</Link>
+                            <Link href="/chats" className="rounded-md border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-800 shadow-sm hover:bg-violet-100">Open chats</Link>
                             <Link href="/posts/new" className="rounded-md bg-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-amber-700">Create collab post</Link>
                             <Link href="/galleries/new?type=moodboard" className="rounded-md bg-violet-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-800">Create moodboard</Link>
                             <Link href="/galleries/new?type=portfolio" className="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700">Create portfolio</Link>
@@ -85,7 +86,7 @@ export default function ProfilePage() {
             {error && <p role="alert" className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">{error}</p>}
 
             {!data && !error ? <p className="mt-8 text-slate-600">Loading your work…</p> : data && <>
-                <ProfileWorkRows posts={data.posts} galleries={data.galleries} isOwner />
+                <ProfileContentViews posts={data.posts} galleries={data.galleries} isOwner />
 
                 <section className="mt-6 grid gap-4 sm:grid-cols-2" aria-label="Application management">
                     <Link href="/my-applications" className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-emerald-600">
