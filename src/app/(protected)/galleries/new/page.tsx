@@ -25,6 +25,16 @@ function CreateGalleryForm() {
     const [collaborations, setCollaborations] = useState<{ id: string; title: string }[]>([]);
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const isMoodboard = purpose === 1;
+    const galleryLabel = isMoodboard ? "Moodboard" : "Portfolio";
+    const accentTextClassName = isMoodboard ? "text-violet-700" : "text-blue-700";
+    const focusClassName = isMoodboard
+        ? "focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+        : "focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
+    const buttonClassName = isMoodboard
+        ? "bg-violet-700 hover:bg-violet-800 disabled:bg-violet-300"
+        : "bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300";
+    const formBorderClassName = isMoodboard ? "border-violet-200" : "border-blue-200";
 
     useEffect(() => {
         let cancelled = false;
@@ -83,19 +93,22 @@ function CreateGalleryForm() {
     return (
         <main className="bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
             <div className="mx-auto max-w-xl">
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                    Create {purpose === 1 ? "Moodboard" : "Portfolio"}
+                <p className={`text-xs font-bold uppercase tracking-[0.18em] ${accentTextClassName}`}>
+                    {isMoodboard ? "Creative direction" : "Project outcome"}
+                </p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+                    Create {galleryLabel}
                 </h1>
                 <p className="mt-3 leading-7 text-slate-600">
-                    {purpose === 1 ? "Collect visual references and arrange the creative direction." : "Collect finished work and project outcomes."}
+                    {isMoodboard ? "Collect visual references and arrange the creative direction." : "Publish finished work and show what the collaboration made."}
                 </p>
 
                 <form
                     onSubmit={handleSubmit}
-                    className="mt-8 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                    className={`mt-8 rounded-lg border bg-white p-5 shadow-sm sm:p-6 ${formBorderClassName}`}
                 >
                     <label className="block text-sm font-medium text-slate-700" htmlFor="title">
-                        Gallery title
+                        {galleryLabel} title
                     </label>
                     <input
                         id="title"
@@ -103,7 +116,7 @@ function CreateGalleryForm() {
                         onChange={(event) => setTitle(event.target.value)}
                         maxLength={150}
                         required
-                        className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className={`mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none placeholder:text-slate-400 ${focusClassName}`}
                     />
 
                     <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="purpose">
@@ -113,7 +126,7 @@ function CreateGalleryForm() {
                         id="purpose"
                         value={purpose}
                         onChange={(event) => setPurpose(Number(event.target.value) as GalleryPurpose)}
-                        className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className={`mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ${focusClassName}`}
                     >
                         <option value={0}>Portfolio</option>
                         <option value={1}>Moodboard</option>
@@ -126,7 +139,7 @@ function CreateGalleryForm() {
                         id="collaboration"
                         value={collabPostId}
                         onChange={(event) => setCollabPostId(event.target.value)}
-                        className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className={`mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ${focusClassName}`}
                     >
                         <option value="">Not linked to a collaboration</option>
                         {collaborations.map((collaboration) => (
@@ -136,8 +149,9 @@ function CreateGalleryForm() {
                         ))}
                     </select>
                     <p className="mt-2 text-xs leading-5 text-slate-500">
-                        You can link your own post or a collaboration where your application was accepted.
-                        Each post can have one moodboard.
+                        {isMoodboard
+                            ? "Each post can have one shared moodboard. Link it to your own post or a collaboration where your application was accepted."
+                            : "Accepted collaborators can link any number of portfolios to a post. You can also link portfolio work to your own post."}
                     </p>
 
                     <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="description">
@@ -149,7 +163,7 @@ function CreateGalleryForm() {
                         onChange={(event) => setDescription(event.target.value)}
                         maxLength={2000}
                         rows={5}
-                        className="mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className={`mt-2 w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none placeholder:text-slate-400 ${focusClassName}`}
                     />
 
                     {error && (
@@ -164,9 +178,9 @@ function CreateGalleryForm() {
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="mt-6 w-full rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                        className={`mt-6 w-full rounded-md px-4 py-2.5 font-medium text-white disabled:cursor-not-allowed ${buttonClassName}`}
                     >
-                        {isSubmitting ? "Creating gallery..." : "Create gallery"}
+                        {isSubmitting ? `Creating ${galleryLabel.toLowerCase()}...` : `Create ${galleryLabel.toLowerCase()}`}
                     </button>
                 </form>
             </div>
