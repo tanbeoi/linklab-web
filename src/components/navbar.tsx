@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -26,22 +26,58 @@ export function Navbar() {
     const router = useRouter();
     const { user, isAuthenticated, isLoading, logout } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const mobileMenuRef = useRef<HTMLElement>(null);
+    const mobileMenuCloseButtonRef = useRef<HTMLButtonElement>(null);
+    const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
+        if (!isMenuOpen) return;
+
+        const previousOverflow = document.body.style.overflow;
+        const mobileMenuTrigger = mobileMenuTriggerRef.current;
+        document.body.style.overflow = "hidden";
+        mobileMenuCloseButtonRef.current?.focus();
+
         function handleKeyDown(event: KeyboardEvent) {
             if (event.key === "Escape") {
+                event.preventDefault();
                 setIsMenuOpen(false);
+                return;
+            }
+
+            if (event.key !== "Tab" || !mobileMenuRef.current) return;
+
+            const focusable = Array.from(
+                mobileMenuRef.current.querySelectorAll<HTMLElement>(
+                    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+                ),
+            ).filter((element) => !element.hasAttribute("hidden"));
+            if (focusable.length === 0) return;
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
             }
         }
 
-        if (isMenuOpen) {
-            window.addEventListener("keydown", handleKeyDown);
-        }
-
+        window.addEventListener("keydown", handleKeyDown);
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
+            document.body.style.overflow = previousOverflow;
+            if (mobileMenuTrigger?.isConnected) {
+                mobileMenuTrigger.focus({ preventScroll: true });
+            }
         };
     }, [isMenuOpen]);
+
+    function openMenu() {
+        setIsMenuOpen(true);
+    }
 
     function handleLogout() {
         setIsMenuOpen(false);
@@ -59,7 +95,8 @@ export function Navbar() {
                 <div className="grid grid-cols-3 items-center sm:hidden">
                     <button
                         type="button"
-                        onClick={() => setIsMenuOpen(true)}
+                        onClick={openMenu}
+                        ref={mobileMenuTriggerRef}
                         aria-label="Open navigation menu"
                         aria-expanded={isMenuOpen}
                         aria-controls="mobile-navigation"
@@ -110,14 +147,14 @@ export function Navbar() {
                                     <Link href="/chats" className={desktopLinkClassName}>
                                         Chats
                                     </Link>
-                                    <Link href="/posts/new" className={desktopLinkClassName}>
-                                        Create post
-                                    </Link>
                                     <Link href="/galleries?type=moodboard" className={desktopLinkClassName}>
                                         Moodboards
                                     </Link>
                                     <Link href="/galleries?type=portfolio" className={desktopLinkClassName}>
                                         Portfolios
+                                    </Link>
+                                    <Link href="/my-galleries" className={desktopLinkClassName}>
+                                        My galleries
                                     </Link>
                                     <Link
                                         href="/profile"
@@ -171,6 +208,7 @@ export function Navbar() {
                     />
 
                     <aside
+                        ref={mobileMenuRef}
                         id="mobile-navigation"
                         role="dialog"
                         aria-modal="true"
@@ -183,6 +221,7 @@ export function Navbar() {
                                 LinkLab
                             </Link>
                             <button
+                                ref={mobileMenuCloseButtonRef}
                                 type="button"
                                 onClick={closeMenu}
                                 aria-label="Close navigation menu"
@@ -214,14 +253,14 @@ export function Navbar() {
                                         <Link href="/chats" onClick={closeMenu} className={mobileLinkClassName}>
                                             Chats
                                         </Link>
-                                        <Link href="/posts/new" onClick={closeMenu} className={mobileLinkClassName}>
-                                            Create post
-                                        </Link>
                                         <Link href="/galleries?type=moodboard" onClick={closeMenu} className={mobileLinkClassName}>
                                             Moodboards
                                         </Link>
                                         <Link href="/galleries?type=portfolio" onClick={closeMenu} className={mobileLinkClassName}>
                                             Portfolios
+                                        </Link>
+                                        <Link href="/my-galleries" onClick={closeMenu} className={mobileLinkClassName}>
+                                            My galleries
                                         </Link>
                                         <Link href="/profile" onClick={closeMenu} className="flex items-center gap-3 rounded-md px-3 py-3 text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900">
                                             <ProfileAvatar imageUrl={user?.avatarImageUrl} focalPointX={user?.avatarFocalPointX} focalPointY={user?.avatarFocalPointY} zoom={user?.avatarZoom} className="size-9" iconClassName="size-5" />
