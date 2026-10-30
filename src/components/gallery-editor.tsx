@@ -71,6 +71,10 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         message: string;
     } | null>(null);
 
+    function finishEditing() {
+        window.history.back();
+    }
+
     useEffect(() => {
         let cancelled = false;
 
@@ -406,7 +410,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     <p className="text-sm font-medium text-blue-700">Gallery editor</p>
                     <h1 className="text-2xl font-bold sm:text-3xl">{gallery.title}</h1>
                 </div>
-                <Link href="/galleries/mine" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Done</Link>
+                <button type="button" onClick={finishEditing} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Done</button>
             </header>
 
             {(error || notice) && <p role={error ? "alert" : "status"} className={`mx-auto mb-5 w-full max-w-none rounded-lg border p-4 text-sm ${error ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-800"}`}>{error || notice}</p>}
@@ -571,6 +575,9 @@ function ThumbnailSettings({
 }) {
     const thumbnailFileInputRef = useRef<HTMLInputElement>(null);
     const previewRef = useRef<HTMLDivElement>(null);
+    const thumbnailDialogRef = useRef<HTMLElement>(null);
+    const thumbnailCloseButtonRef = useRef<HTMLButtonElement>(null);
+    const thumbnailTriggerRef = useRef<HTMLElement | null>(null);
     const dragStartRef = useRef<{ x: number; y: number; focalPointX: number; focalPointY: number } | null>(null);
     const [isOpen, setIsOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
@@ -580,6 +587,9 @@ function ThumbnailSettings({
     const [draft, setDraft] = useState<ThumbnailDraft | null>(null);
 
     function openEditor() {
+        thumbnailTriggerRef.current = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
         setFeedback("");
         setDraft({
             source: thumbnailSourceFor(gallery),
@@ -592,6 +602,56 @@ function ThumbnailSettings({
         });
         setIsOpen(true);
     }
+
+    function closeEditor() {
+        setIsOpen(false);
+    }
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        thumbnailCloseButtonRef.current?.focus();
+
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                closeEditor();
+                return;
+            }
+
+            if (event.key !== "Tab" || !thumbnailDialogRef.current) return;
+
+            const focusable = Array.from(
+                thumbnailDialogRef.current.querySelectorAll<HTMLElement>(
+                    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+                ),
+            ).filter((element) => !element.hasAttribute("hidden"));
+
+            if (focusable.length === 0) return;
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        }
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            document.body.style.overflow = previousOverflow;
+            if (thumbnailTriggerRef.current?.isConnected) {
+                thumbnailTriggerRef.current.focus({ preventScroll: true });
+            }
+        };
+    }, [isOpen]);
 
     const automaticPhoto = [...photos]
         .sort((left, right) => left.sortOrder - right.sortOrder || left.createdAtUtc.localeCompare(right.createdAtUtc))[0];
@@ -761,7 +821,7 @@ function ThumbnailSettings({
             });
 
             onUpdated(savedThumbnail);
-            setIsOpen(false);
+            closeEditor();
         } catch (cause) {
             setFeedback(errorMessage(cause, "Could not save the thumbnail."));
         } finally {
@@ -786,15 +846,15 @@ function ThumbnailSettings({
             <button type="button" onClick={openEditor} className="mt-3 text-sm font-medium text-blue-700 hover:text-blue-800 hover:underline">Change thumbnail</button>
         </section>
 
-        {isOpen && draft && createPortal(<div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" aria-labelledby="thumbnail-editor-title">
-            <section className="max-h-[calc(100dvh-2rem)] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+        {isOpen && draft && createPortal(<div onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }} className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" aria-labelledby="thumbnail-editor-title">
+            <section ref={thumbnailDialogRef} className="max-h-[calc(100dvh-2rem)] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
                 <div className="flex items-start justify-between gap-5">
                     <div>
                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Gallery thumbnail</p>
                         <h2 id="thumbnail-editor-title" className="mt-1 text-xl font-semibold text-slate-900">Choose and reframe your thumbnail</h2>
                         <p className="mt-1 text-sm text-slate-600">This only changes the image shown on gallery cards. It does not crop or change your gallery photos.</p>
                     </div>
-                    <button type="button" onClick={() => setIsOpen(false)} className="rounded-full p-1 text-xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-900" aria-label="Close thumbnail editor">×</button>
+                    <button ref={thumbnailCloseButtonRef} type="button" onClick={closeEditor} className="rounded-full p-1 text-xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-900" aria-label="Close thumbnail editor">×</button>
                 </div>
 
                 <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -854,7 +914,7 @@ function ThumbnailSettings({
 
                 {feedback && <p role="alert" className="mt-5 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{feedback}</p>}
                 <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
-                    <button type="button" disabled={isSaving} onClick={() => setIsOpen(false)} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">Cancel</button>
+                    <button type="button" disabled={isSaving} onClick={closeEditor} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">Cancel</button>
                     <button type="button" disabled={isSaving || isUploading} onClick={() => { void saveThumbnail(); }} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300">{isSaving ? "Saving thumbnail…" : "Save thumbnail"}</button>
                 </div>
             </section>
