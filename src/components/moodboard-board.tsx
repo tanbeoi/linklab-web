@@ -107,12 +107,13 @@ function resizeLayout(
 
 type MoodboardCompositionProps = {
     photos: Photo[];
+    onOpenPhoto?: (photo: Photo) => void;
 };
 
 // Read-only public presentation of the editor's composition. It crops the
 // 2400×1600 working canvas to the smallest area that contains every placed
 // card, then scales that area responsively to the available width.
-export function MoodboardComposition({ photos }: MoodboardCompositionProps) {
+export function MoodboardComposition({ photos, onOpenPhoto }: MoodboardCompositionProps) {
     const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
     const placedPhotos = photos
         .filter(isPlaced)
@@ -163,7 +164,7 @@ export function MoodboardComposition({ photos }: MoodboardCompositionProps) {
     return (
         <div
             aria-label="Moodboard composition"
-            className="relative w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+            className="relative isolate w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
             style={{
                 aspectRatio: `${cropWidth} / ${cropHeight}`,
                 backgroundImage: "radial-gradient(#cbd5e1 1px, transparent 1px)",
@@ -185,15 +186,34 @@ export function MoodboardComposition({ photos }: MoodboardCompositionProps) {
                             zIndex: photo.boardZIndex ?? 0,
                         }}
                     >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={photo.imageUrl}
-                            alt={caption || "Moodboard image"}
-                            loading="lazy"
-                            decoding="async"
-                            onLoad={(event) => saveAspectRatio(photo, event.currentTarget)}
-                            className="block h-auto w-full"
-                        />
+                        {onOpenPhoto ? (
+                            <button
+                                type="button"
+                                onClick={() => onOpenPhoto(photo)}
+                                aria-label={`View ${caption || "moodboard image"} full screen`}
+                                className="group block w-full cursor-zoom-in text-left focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-violet-600"
+                            >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={photo.imageUrl}
+                                    alt={caption || "Moodboard image"}
+                                    loading="lazy"
+                                    decoding="async"
+                                    onLoad={(event) => saveAspectRatio(photo, event.currentTarget)}
+                                    className="block h-auto w-full transition duration-200 group-hover:brightness-95"
+                                />
+                            </button>
+                        ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={photo.imageUrl}
+                                alt={caption || "Moodboard image"}
+                                loading="lazy"
+                                decoding="async"
+                                onLoad={(event) => saveAspectRatio(photo, event.currentTarget)}
+                                className="block h-auto w-full"
+                            />
+                        )}
                         <figcaption
                             className="relative border-t border-slate-100 bg-white text-slate-600"
                             style={{ paddingTop: `${(layout.captionHeight / layout.width) * 100}%` }}
