@@ -49,7 +49,7 @@ export default function RegisterPage() {
       // validate the destination 
       const destination = next?.startsWith("/") && !next.startsWith("//") 
                           ? next 
-                          : "/";
+                          : "/dashboard";
 
       // redirect
       window.location.href = destination;
