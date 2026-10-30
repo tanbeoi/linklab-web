@@ -5,9 +5,9 @@ import { apiRequest } from "@/lib/api";
 import { ApplicationStatus, CollabPost, PagedResponse } from "@/types/posts";
 import { ApplicationForm } from "@/components/application-form";
 import { useAuth } from "@/contexts/auth-context";
-import { GalleryViewer, type GalleryViewerSource } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import { UserProfileLink } from "@/components/user-profile-link";
+import { useGalleryNavigation } from "@/lib/use-gallery-navigation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -64,7 +64,7 @@ export default function ListPostsPage() {
     const [pageSize, setPageSize] = useState(10);
     const [postsResponse, setPostsResponse] = useState<PagedResponse<CollabPost> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [viewingGallery, setViewingGallery] = useState<GalleryViewerSource | null>(null);
+    const { openGallery, openPostMoodboard } = useGalleryNavigation();
     const [selectedPost, setSelectedPost] = useState<CollabPost | null>(null);
 
     function markPostAsApplied(postId: string) {
@@ -150,6 +150,9 @@ export default function ListPostsPage() {
                             <p className="mt-2 leading-7 text-slate-600">
                                 Browse opportunities to connect, share ideas, and work with others.
                             </p>
+                            {isAuthenticated && <Link href="/my-posts" className="mt-2 inline-flex text-sm font-semibold text-amber-700 hover:text-amber-800 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600">
+                                My posts →
+                            </Link>}
                         </div>
                         {isAuthenticated && <Link href="/posts/new" className="rounded-md bg-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-amber-700">Create post</Link>}
                     </header>
@@ -260,13 +263,13 @@ export default function ListPostsPage() {
                                                             tabIndex={0}
                                                             onClick={(event) => {
                                                                 event.stopPropagation();
-                                                                setViewingGallery({ postId: post.id });
+                                                                void openPostMoodboard(post.id);
                                                             }}
                                                             onKeyDown={(event) => {
                                                                 if (event.key !== "Enter" && event.key !== " ") return;
                                                                 event.preventDefault();
                                                                 event.stopPropagation();
-                                                                setViewingGallery({ postId: post.id });
+                                                                void openPostMoodboard(post.id);
                                                             }}
                                                             className="mt-5 cursor-pointer rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-violet-700"
                                                         >
@@ -293,7 +296,7 @@ export default function ListPostsPage() {
                                                                         type="button"
                                                                         key={imageUrl}
                                                                         aria-label={`View moodboard for ${post.title}`}
-                                                                        onClick={(event) => { event.stopPropagation(); setViewingGallery({ postId: post.id }); }}
+                                                                        onClick={(event) => { event.stopPropagation(); void openPostMoodboard(post.id); }}
                                                                         className="relative aspect-[4/3] min-w-0 overflow-hidden rounded-md bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600"
                                                                     >
                                                                         <MoodboardThumbnail
@@ -322,14 +325,14 @@ export default function ListPostsPage() {
                                                             onClick={(event) => {
                                                                 event.stopPropagation();
                                                                 if (solePortfolio) {
-                                                                    setViewingGallery({ galleryId: solePortfolio.id });
+                                                                    openGallery(solePortfolio.id);
                                                                 }
                                                             }}
                                                             onKeyDown={(event) => {
                                                                 if (!solePortfolio || (event.key !== "Enter" && event.key !== " ")) return;
                                                                 event.preventDefault();
                                                                 event.stopPropagation();
-                                                                setViewingGallery({ galleryId: solePortfolio.id });
+                                                                openGallery(solePortfolio.id);
                                                             }}
                                                             className={`mt-5 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-4 shadow-sm ${solePortfolio ? "cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600" : ""}`}
                                                         >
@@ -355,8 +358,8 @@ export default function ListPostsPage() {
                                                                         key={portfolio.id}
                                                                         role="link"
                                                                         tabIndex={0}
-                                                                        onClick={(event) => { event.stopPropagation(); setViewingGallery({ galleryId: portfolio.id }); }}
-                                                                        onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); setViewingGallery({ galleryId: portfolio.id }); } }}
+                                                                        onClick={(event) => { event.stopPropagation(); openGallery(portfolio.id); }}
+                                                                        onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); openGallery(portfolio.id); } }}
                                                                         className="group w-64 shrink-0 snap-start cursor-pointer overflow-hidden rounded-lg border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-72"
                                                                     >
                                                                         <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
@@ -580,7 +583,6 @@ export default function ListPostsPage() {
                     </div>
                 </aside>
             )}
-            {viewingGallery && <GalleryViewer source={viewingGallery} onClose={() => setViewingGallery(null)} />}
         </main>
     );
 }

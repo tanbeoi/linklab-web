@@ -3,9 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 
-import { GalleryViewer, type GalleryViewerSource } from "@/components/gallery-viewer";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
 import { ProfileWorkRows } from "@/components/profile-work-rows";
+import { useGalleryNavigation } from "@/lib/use-gallery-navigation";
 import type { Gallery } from "@/types/galleries";
 import type { CollabPost, PortfolioGalleryPreview } from "@/types/posts";
 
@@ -46,10 +46,11 @@ function PortfolioOutcomeCard({ gallery, onOpen }: { gallery: PortfolioGalleryPr
     );
 }
 
-function ProjectActivityCard({ post, isOwner, onOpenGallery }: {
+function ProjectActivityCard({ post, isOwner, onOpenGallery, onOpenPostMoodboard }: {
     post: CollabPost;
     isOwner: boolean;
-    onOpenGallery: (source: GalleryViewerSource) => void;
+    onOpenGallery: (galleryId: string) => void;
+    onOpenPostMoodboard: (postId: string) => void;
 }) {
     const moodboardImages = post.moodboardPreviewImageUrls.slice(0, 3);
     const remainingMoodboardImages = Math.max(post.moodboardPhotoCount - moodboardImages.length, 0);
@@ -80,7 +81,7 @@ function ProjectActivityCard({ post, isOwner, onOpenGallery }: {
                 </div>
 
                 {hasLinkedWork ? <div className="mt-6 grid items-start gap-4 xl:grid-cols-2">
-                    {moodboardImages.length > 0 && <button type="button" onClick={() => onOpenGallery({ postId: post.id })}
+                    {moodboardImages.length > 0 && <button type="button" onClick={() => void onOpenPostMoodboard(post.id)}
                         className="group rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600">
                         <div className="flex items-center gap-3"><span aria-hidden="true" className="h-px w-8 bg-violet-400" /><p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">Creative direction</p></div>
                         <p className="mt-2 text-sm text-slate-600">Moodboard for this collaboration</p>
@@ -94,7 +95,7 @@ function ProjectActivityCard({ post, isOwner, onOpenGallery }: {
                         <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span aria-hidden="true" className="h-px w-8 bg-blue-400" /><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Project outcomes</p></div><span className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700">{post.portfolioGalleries.length} {post.portfolioGalleries.length === 1 ? "portfolio" : "portfolios"}</span></div>
                         <p className="mt-2 text-sm text-slate-600">Work created from this collaboration.</p>
                         <div className="mt-4 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]">
-                            {post.portfolioGalleries.map((gallery) => <PortfolioOutcomeCard key={gallery.id} gallery={gallery} onOpen={() => onOpenGallery({ galleryId: gallery.id })} />)}
+                            {post.portfolioGalleries.map((gallery) => <PortfolioOutcomeCard key={gallery.id} gallery={gallery} onOpen={() => onOpenGallery(gallery.id)} />)}
                         </div>
                     </section>}
                 </div> : <p className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">No moodboard or portfolio work is linked to this post yet.</p>}
@@ -103,15 +104,14 @@ function ProjectActivityCard({ post, isOwner, onOpenGallery }: {
     );
 }
 
-function ProjectActivityView({ posts, isOwner }: { posts: CollabPost[]; isOwner: boolean }) {
-    const [viewerSource, setViewerSource] = useState<GalleryViewerSource | null>(null);
+export function ProjectActivityView({ posts, isOwner }: { posts: CollabPost[]; isOwner: boolean }) {
+    const { openGallery, openPostMoodboard } = useGalleryNavigation();
 
     return <>
         <div className="mt-5 space-y-5">
             {posts.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">{isOwner ? "You have not created a collaboration post yet." : "No public collaboration posts yet."}</div>
-                : posts.map((post) => <ProjectActivityCard key={post.id} post={post} isOwner={isOwner} onOpenGallery={setViewerSource} />)}
+                : posts.map((post) => <ProjectActivityCard key={post.id} post={post} isOwner={isOwner} onOpenGallery={openGallery} onOpenPostMoodboard={openPostMoodboard} />)}
         </div>
-        {viewerSource && <GalleryViewer source={viewerSource} onClose={() => setViewerSource(null)} />}
     </>;
 }
 

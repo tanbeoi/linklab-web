@@ -1,1 +1,1 @@
-export { default } from "@/app/(protected)/my-galleries/page";
+export { default } from "../../my-galleries/page";
