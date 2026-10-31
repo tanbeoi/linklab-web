@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { MoodboardComposition } from "@/components/moodboard-board";
 import { CollaborationOrigin } from "@/components/collaboration-origin";
 import { UserProfileLink } from "@/components/user-profile-link";
+import { YoutubeVideo } from "@/components/youtube-video";
 import type { Gallery, Photo } from "@/types/galleries";
 
 export type GalleryViewerSource =
@@ -92,7 +93,8 @@ export function GalleryViewer({ source, onClose }: {
     }, [source, attempt]);
 
     const gallery = content?.gallery ?? ("gallery" in source ? source.gallery : null);
-    const activePhoto = activePhotoIndex === null ? null : content?.photos[activePhotoIndex] ?? null;
+    const fullScreenPhotos = useMemo(() => content?.photos.filter((photo) => !photo.youtubeVideoId) ?? [], [content]);
+    const activePhoto = activePhotoIndex === null ? null : fullScreenPhotos[activePhotoIndex] ?? null;
 
     function openPhoto(index: number) {
         fullScreenOriginRef.current = document.activeElement instanceof HTMLElement
@@ -105,7 +107,7 @@ export function GalleryViewer({ source, onClose }: {
         if (activePhotoIndex === null || !content) {
             return;
         }
-        const photos = content.photos;
+        const photos = fullScreenPhotos;
 
         function handleFullScreenKeyDown(event: KeyboardEvent) {
             if (event.key === "Escape") {
@@ -150,7 +152,7 @@ export function GalleryViewer({ source, onClose }: {
 
         window.addEventListener("keydown", handleFullScreenKeyDown);
         return () => window.removeEventListener("keydown", handleFullScreenKeyDown);
-    }, [activePhotoIndex, content]);
+    }, [activePhotoIndex, content, fullScreenPhotos]);
 
     useEffect(() => {
         if (activePhoto) {
@@ -192,17 +194,22 @@ export function GalleryViewer({ source, onClose }: {
                         <button type="button" onClick={() => { setError(""); setContent(null); setAttempt(a => a + 1); }}
                             className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-white">Try again</button>
                     </div>
-                ) : !content ? <p role="status" className="py-16 text-center">Loading photos…</p>
-                : content.photos.length === 0 ? <p className="rounded-lg bg-white p-10 text-center text-slate-600">No photos have been added yet.</p>
+                ) : !content ? <p role="status" className="py-16 text-center">Loading gallery…</p>
+                : content.photos.length === 0 ? <p className="rounded-lg bg-white p-10 text-center text-slate-600">No media have been added yet.</p>
                 : content.gallery.purpose === 1 ? <MoodboardComposition
                     photos={content.photos}
                     onOpenPhoto={(photo) => openPhoto(content.photos.findIndex((candidate) => candidate.id === photo.id))}
                 />
                 : <div className="overflow-hidden bg-white text-slate-900">
-                    {content.photos.map((photo, index) => <GalleryPhoto key={photo.id} photo={photo} onOpen={() => openPhoto(index)} />)}
+                    {content.photos.map((photo) => photo.youtubeVideoId
+                        ? <figure key={photo.id}>
+                            <YoutubeVideo videoId={photo.youtubeVideoId} aspectRatio={photo.videoAspectRatio} title={photo.caption} />
+                            {photo.caption && <figcaption className="bg-white px-5 py-3 text-sm text-slate-600">{photo.caption}</figcaption>}
+                        </figure>
+                        : <GalleryPhoto key={photo.id} photo={photo} onOpen={() => openPhoto(fullScreenPhotos.findIndex((item) => item.id === photo.id))} />)}
                 </div>}
             </article>
-            {activePhoto && content && <section ref={fullScreenDialogRef} role="dialog" aria-modal="true" aria-label={`Full-screen photo ${activePhotoIndex! + 1} of ${content.photos.length}`} className="fixed inset-0 z-[100] isolate flex h-dvh w-screen items-center justify-center bg-black p-4 sm:p-8">
+            {activePhoto && content && <section ref={fullScreenDialogRef} role="dialog" aria-modal="true" aria-label={`Full-screen photo ${activePhotoIndex! + 1} of ${fullScreenPhotos.length}`} className="fixed inset-0 z-[100] isolate flex h-dvh w-screen items-center justify-center bg-black p-4 sm:p-8">
                 <button
                     ref={fullScreenBackButtonRef}
                     type="button"
@@ -213,12 +220,12 @@ export function GalleryViewer({ source, onClose }: {
                     ×
                 </button>
                 <p className="absolute left-4 top-5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium text-white backdrop-blur sm:left-6">
-                    {activePhotoIndex! + 1} / {content.photos.length}
+                    {activePhotoIndex! + 1} / {fullScreenPhotos.length}
                 </p>
-                {content.photos.length > 1 && <>
+                {fullScreenPhotos.length > 1 && <>
                     <button
                         type="button"
-                        onClick={() => setActivePhotoIndex((currentIndex) => currentIndex === null ? 0 : (currentIndex - 1 + content.photos.length) % content.photos.length)}
+                        onClick={() => setActivePhotoIndex((currentIndex) => currentIndex === null ? 0 : (currentIndex - 1 + fullScreenPhotos.length) % fullScreenPhotos.length)}
                         aria-label="Previous photo"
                         className="absolute inset-y-0 left-0 z-10 flex w-16 items-center justify-center text-5xl text-white/80 transition hover:bg-black/20 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white sm:w-24"
                     >
@@ -226,7 +233,7 @@ export function GalleryViewer({ source, onClose }: {
                     </button>
                     <button
                         type="button"
-                        onClick={() => setActivePhotoIndex((currentIndex) => currentIndex === null ? 0 : (currentIndex + 1) % content.photos.length)}
+                        onClick={() => setActivePhotoIndex((currentIndex) => currentIndex === null ? 0 : (currentIndex + 1) % fullScreenPhotos.length)}
                         aria-label="Next photo"
                         className="absolute inset-y-0 right-0 z-10 flex w-16 items-center justify-center text-5xl text-white/80 transition hover:bg-black/20 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white sm:w-24"
                     >
