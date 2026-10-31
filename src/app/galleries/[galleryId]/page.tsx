@@ -7,6 +7,7 @@ import { apiRequest } from "@/lib/api";
 import { MoodboardComposition } from "@/components/moodboard-board";
 import { CollaborationOrigin } from "@/components/collaboration-origin";
 import { UserProfileLink } from "@/components/user-profile-link";
+import { YoutubeVideo } from "@/components/youtube-video";
 import type { Gallery, Photo } from "@/types/galleries";
 
 export default function PublicGalleryPage() {
@@ -43,12 +44,14 @@ export default function PublicGalleryPage() {
                 {content.gallery.description && <p className="mt-5 max-w-3xl whitespace-pre-wrap text-slate-200">{content.gallery.description}</p>}
             </header>
             <div className="mb-6"><CollaborationOrigin gallery={content.gallery} /></div>
-            {content.photos.length === 0 ? <p className="rounded-lg bg-white p-8 text-slate-600">No photos have been added yet.</p>
+            {content.photos.length === 0 ? <p className="rounded-lg bg-white p-8 text-slate-600">No media have been added yet.</p>
                 : content.gallery.purpose === 1 ? <MoodboardComposition photos={content.photos} />
                 : <div className="overflow-hidden bg-white">
                     {content.photos.map((photo) => <figure key={photo.id}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={photo.imageUrl} alt={photo.caption || "Gallery photograph"} className="block h-auto w-full" />
+                        {photo.youtubeVideoId ? <YoutubeVideo videoId={photo.youtubeVideoId} aspectRatio={photo.videoAspectRatio} title={photo.caption} /> : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={photo.imageUrl} alt={photo.caption || "Gallery photograph"} className="block h-auto w-full" />
+                        )}
                         {photo.caption && <figcaption className="px-5 py-3 text-sm text-slate-600">{photo.caption}</figcaption>}
                     </figure>)}
                 </div>}
