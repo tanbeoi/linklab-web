@@ -15,7 +15,7 @@ type GalleryPreviewSource = Pick<Gallery, "title" | "previewImageUrl" | "photoCo
 type LinkedPortfolio = PortfolioGalleryPreview & { ownedGallery: Gallery | null };
 
 function GalleryPreview({ gallery, photos }: { gallery: GalleryPreviewSource; photos: Photo[] }) {
-    const imageSources = photos.slice(0, 3).map((photo) => photo.imageUrl);
+    const imageSources = photos.filter((photo) => !photo.youtubeVideoId).slice(0, 3).map((photo) => photo.imageUrl);
     if (imageSources.length === 0 && gallery.previewImageUrl) imageSources.push(gallery.previewImageUrl);
 
     if (imageSources.length === 0) {
@@ -304,7 +304,7 @@ export function PostEditor({ postId }: { postId: string }) {
                         <GalleryPreview gallery={portfolio} photos={portfolio.ownedGallery ? linkedPhotos[portfolio.id] ?? [] : []} />
                         <div className="p-3">
                             <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0"><p className="truncate font-semibold">{portfolio.title}</p><p className="mt-1 text-sm text-slate-600">{portfolio.photoCount} {portfolio.photoCount === 1 ? "photo" : "photos"}</p></div>
+                                <div className="min-w-0"><p className="truncate font-semibold">{portfolio.title}</p><p className="mt-1 text-sm text-slate-600">{portfolio.photoCount} {portfolio.photoCount === 1 ? "item" : "items"}</p></div>
                                 {portfolio.ownedGallery && <Link href={`/galleries/${portfolio.id}/edit`} className="shrink-0 text-sm font-semibold text-blue-700 hover:underline">Edit</Link>}
                             </div>
                             <p className="mt-2 text-sm text-slate-500">By <UserProfileLink userId={portfolio.ownerId}>{portfolio.ownerDisplayName}</UserProfileLink></p>
