@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { YoutubeVideo } from "@/components/youtube-video";
 import { ChangeEvent, Fragment, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -54,7 +55,6 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({});
     const [collaborations, setCollaborations] = useState<CollaborationOption[]>([]);
     const [selectedCollabPostId, setSelectedCollabPostId] = useState("");
-    const [collaborationSelectVersion, setCollaborationSelectVersion] = useState(0);
     const [isUpdatingCollaboration, setIsUpdatingCollaboration] = useState(false);
     const [collaborationFeedback, setCollaborationFeedback] = useState<{
         type: "success" | "error";
@@ -63,7 +63,10 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const [insertionPoint, setInsertionPoint] = useState<InsertionPoint>({ insertAtStart: true });
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isSavingCaptions, setIsSavingCaptions] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [videoInsertionPoint, setVideoInsertionPoint] = useState<InsertionPoint | null>(null);
+    const [isAddingVideo, setIsAddingVideo] = useState(false);
     const [photoUploadPreview, setPhotoUploadPreview] = useState<PhotoUploadPreview | null>(null);
     const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
     const [isPublishing, setIsPublishing] = useState(false);
@@ -247,34 +250,19 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 description: String(formData.get("description") ?? ""),
                 purpose: Number(formData.get("purpose")) as GalleryPurpose,
             };
+            if (request.purpose === 1 && photos.some((photo) => photo.youtubeVideoId)) {
+                setSettingsFeedback({ type: "error", message: "Moodboard currently only supports photos." });
+                return;
+            }
             const saved = await apiRequest<Pick<Gallery, "title" | "description" | "purpose">>(`/api/galleries/${gallery.id}`, {
                 method: "PUT",
                 body: JSON.stringify(request),
             });
 
-            const editedCaptions = Object.entries(captionDrafts).map(([photoId, caption]) => ({
-                photoId,
-                caption,
-            }));
-            if (editedCaptions.length > 0) {
-                await apiRequest<void>(`/api/galleries/${gallery.id}/photos/captions`, {
-                    method: "PATCH",
-                    body: JSON.stringify({ captions: editedCaptions } satisfies UpdatePhotoCaptionsRequest),
-                });
-                setPhotos((current) => current.map((photo) =>
-                    photo.id in captionDrafts ? { ...photo, caption: captionDrafts[photo.id].trim() || null } : photo,
-                ));
-                setCaptionDrafts({});
-            }
-
             setGallery((current) => current ? {
                 ...current,
                 ...saved,
             } : current);
-            // React resets native form controls after a successful form action.
-            // Remount this independently saved selector so it is painted from its
-            // current saved value rather than the form's reset default.
-            setCollaborationSelectVersion((current) => current + 1);
             setSettingsFeedback({
                 type: "success",
                 message: "Gallery changes saved.",
@@ -286,6 +274,55 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
             });
         } finally {
             setIsSaving(false);
+        }
+    }
+
+    async function addVideo(embedCode: string) {
+        if (!gallery || gallery.purpose !== 0 || !videoInsertionPoint || isAddingVideo) return;
+        setIsAddingVideo(true);
+        setError("");
+        setNotice("");
+        try {
+            const saved = await apiRequest<Photo>(`/api/galleries/${gallery.id}/videos`, {
+                method: "POST",
+                body: JSON.stringify({ embedCode, ...videoInsertionPoint }),
+            });
+            setPhotos((current) => {
+                const index = "insertAtStart" in videoInsertionPoint ? 0
+                    : current.findIndex((photo) => photo.id === videoInsertionPoint.insertAfterPhotoId) + 1;
+                const copy = [...current];
+                copy.splice(Math.max(0, index), 0, saved);
+                return copy;
+            });
+            setGallery((current) => current ? { ...current, photoCount: current.photoCount + 1 } : current);
+            setVideoInsertionPoint(null);
+            setNotice("YouTube video added.");
+        } finally {
+            setIsAddingVideo(false);
+        }
+    }
+
+    async function saveCaptions() {
+        if (!gallery || isSavingCaptions) return;
+        const drafts = { ...captionDrafts };
+        setIsSavingCaptions(true);
+        setError("");
+        setNotice("");
+        try {
+            await apiRequest<void>(`/api/galleries/${gallery.id}/photos/captions`, {
+                method: "PATCH",
+                body: JSON.stringify({ captions: Object.entries(drafts).map(([photoId, caption]) => ({ photoId, caption })) } satisfies UpdatePhotoCaptionsRequest),
+            });
+            setPhotos((current) => current.map((photo) => photo.id in drafts
+                ? { ...photo, caption: drafts[photo.id].trim() || null } : photo));
+            setCaptionDrafts((current) => Object.fromEntries(Object.entries(current).filter(
+                ([id, caption]) => !(id in drafts) || caption !== drafts[id],
+            )));
+            setNotice("Photo captions saved.");
+        } catch (cause) {
+            setError(errorMessage(cause, "Could not save photo captions."));
+        } finally {
+            setIsSavingCaptions(false);
         }
     }
 
@@ -427,11 +464,11 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 ...current,
                 photoCount: Math.max(0, current.photoCount - 1),
             } : current);
-            setNotice("Photo deleted.");
+            setNotice(photo.youtubeVideoId ? "Video deleted." : "Photo deleted.");
         } catch (cause) {
             setPhotos(previousPhotos);
             setCaptionDrafts(previousDrafts);
-            setError(errorMessage(cause, "Could not delete the photo."));
+            setError(errorMessage(cause, "Could not delete the gallery item."));
         } finally {
             setDeletingPhotoId(null);
         }
@@ -472,6 +509,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     return (
         <main className="gallery-editor-page flex min-h-full flex-1 flex-col bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={uploadPhoto} />
+            {videoInsertionPoint && <YoutubeEmbedDialog onSave={addVideo} onClose={() => setVideoInsertionPoint(null)} isSaving={isAddingVideo} />}
             <header className="mx-auto mb-6 flex w-full max-w-none items-center justify-between gap-4">
                 <div>
                     <p className="text-sm font-medium text-blue-700">Gallery editor</p>
@@ -504,19 +542,21 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                         onDeletePhoto={(photo) => { void deletePhoto(photo); }}
                     />
                 ) : (
-                    <section aria-label="Gallery photos" className="overflow-hidden rounded-lg bg-white shadow-sm">
-                        <InsertPhotoButton label={photos.length === 0 ? "Add your first photo" : "Add photo at the top"} isUploading={isUploading} onClick={() => openFilePicker({ insertAtStart: true })} />
+                    <section aria-label="Portfolio media" className="overflow-hidden rounded-lg bg-white shadow-sm">
+                        <InsertPhotoButton label={photos.length === 0 ? "Add your first photo" : "Add photo at the top"} isUploading={isUploading || isAddingVideo} onEmbed={() => setVideoInsertionPoint({ insertAtStart: true })} onClick={() => openFilePicker({ insertAtStart: true })} />
                         {photoUploadPreview?.insertionPoint && "insertAtStart" in photoUploadPreview.insertionPoint && <UploadProgressPreview imageUrl={photoUploadPreview.imageUrl} progress={photoUploadPreview.progress} alt="Uploading gallery photo" className="w-full" imageClassName="h-auto" />}
                         {photos.map((photo) => (<Fragment key={photo.id}>
                             <div key={photo.id}>
                                 <figure className="relative">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={photo.imageUrl} alt={photo.caption || "Gallery photograph"} className="block h-auto w-full" />
+                                    {photo.youtubeVideoId ? <YoutubeVideo videoId={photo.youtubeVideoId} aspectRatio={photo.videoAspectRatio} title={photo.caption} /> : (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={photo.imageUrl} alt={photo.caption || "Gallery photograph"} className="block h-auto w-full" />
+                                    )}
                                     <button
                                         type="button"
                                         disabled={deletingPhotoId !== null}
-                                        aria-label={`Delete ${photo.caption || "portfolio image"}`}
-                                        title="Delete photo"
+                                        aria-label={`Delete ${photo.caption || (photo.youtubeVideoId ? "portfolio video" : "portfolio image")}`}
+                                        title={photo.youtubeVideoId ? "Delete video" : "Delete photo"}
                                         onClick={() => { void deletePhoto(photo); }}
                                         className="absolute right-3 top-3 z-10 flex size-6 items-center justify-center rounded-full bg-white/85 text-base leading-none text-slate-500 shadow-sm backdrop-blur-sm transition hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
@@ -531,7 +571,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                                                 onClick={() => { void deletePhoto(photo); }}
                                                 className="text-xs font-medium text-slate-500 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
-                                                {deletingPhotoId === photo.id ? "Deleting…" : "Delete photo"}
+                                                {deletingPhotoId === photo.id ? "Deleting…" : photo.youtubeVideoId ? "Delete video" : "Delete photo"}
                                             </button>
                                         </div>
                                         <textarea
@@ -545,7 +585,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                                         />
                                     </figcaption>
                                 </figure>
-                                <InsertPhotoButton label="Upload photo here" isUploading={isUploading} onClick={() => openFilePicker({ insertAfterPhotoId: photo.id })} />
+                                <InsertPhotoButton label="Upload photo here" isUploading={isUploading || isAddingVideo} onEmbed={() => setVideoInsertionPoint({ insertAfterPhotoId: photo.id })} onClick={() => openFilePicker({ insertAfterPhotoId: photo.id })} />
                             </div>
                             {photoUploadPreview?.insertionPoint && "insertAfterPhotoId" in photoUploadPreview.insertionPoint && photoUploadPreview.insertionPoint.insertAfterPhotoId === photo.id && <UploadProgressPreview imageUrl={photoUploadPreview.imageUrl} progress={photoUploadPreview.progress} alt="Uploading gallery photo" className="w-full" imageClassName="h-auto" />}
                         </Fragment>))}
@@ -553,7 +593,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 )}
 
                 <aside className="xl:sticky xl:top-5 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
-                    <form action={saveDetails} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <form onSubmit={(event) => { event.preventDefault(); void saveDetails(new FormData(event.currentTarget)); }} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                         <h2 className="text-lg font-semibold">Gallery settings</h2>
                         <label className="mt-5 block text-sm font-medium" htmlFor="gallery-title">Title</label>
                         <input id="gallery-title" name="title" defaultValue={gallery.title} maxLength={150} required className="mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" />
@@ -561,20 +601,36 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                         <textarea id="gallery-description" name="description" defaultValue={gallery.description ?? ""} maxLength={2000} rows={4} className="mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" />
                         <ThumbnailSettings
                             gallery={gallery}
-                            photos={photos}
+                            photos={photos.filter((photo) => !photo.youtubeVideoId)}
                             onUpdated={(thumbnail) => setGallery((current) => current ? { ...current, ...thumbnail } : current)}
                         />
                         <label className="mt-4 block text-sm font-medium" htmlFor="gallery-purpose">Gallery type</label>
                         <select id="gallery-purpose" name="purpose" defaultValue={gallery.purpose} className="mt-1.5 w-full rounded-md border border-slate-300 bg-white px-3 py-2">
                             {Object.entries(galleryPurposeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                         </select>
-                        <label className="mt-4 block text-sm font-medium" htmlFor="gallery-collaboration">Linked collaboration</label>
+                        {settingsFeedback && <p
+                            role={settingsFeedback.type === "error" ? "alert" : "status"}
+                            className={`mt-5 rounded-md border p-3 text-sm ${settingsFeedback.type === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-800"}`}
+                        >
+                            {settingsFeedback.message}
+                        </p>}
+                        {Object.keys(captionDrafts).length > 0 && <div className="mt-4">
+                            <p className="text-xs text-amber-700">You have unsaved photo caption changes.</p>
+                            <button type="button" onClick={() => void saveCaptions()} disabled={isSavingCaptions} className="mt-2 text-sm font-medium text-blue-600 disabled:text-slate-400">{isSavingCaptions ? "Saving captions…" : "Save photo captions"}</button>
+                        </div>}
+                        <p className="mt-5 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500">Save gallery details to apply changes to the title, description, and gallery type.</p>
+                        <button type="submit" disabled={isSaving || isUpdatingCollaboration || isAddingVideo || isUploading} className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving gallery details…" : "Save gallery details"}</button>
+                    </form>
+
+                    <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                        <h2 className="text-lg font-semibold">Linked collaboration</h2>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">Link this {gallery.purpose === 1 ? "moodboard" : "portfolio"} to your own post or a collaboration where your application was accepted.</p>
+                        <label className="mt-4 block text-sm font-medium" htmlFor="gallery-collaboration">Collaboration post</label>
                         <select
-                            key={collaborationSelectVersion}
                             id="gallery-collaboration"
                             value={selectedCollabPostId}
                             onChange={(event) => { void updateCollaboration(event.target.value); }}
-                            disabled={isUpdatingCollaboration}
+                            disabled={isUpdatingCollaboration || isSaving}
                             className="mt-1.5 w-full rounded-md border border-slate-300 bg-white px-3 py-2 disabled:cursor-wait disabled:bg-slate-100"
                         >
                             <option value="">Not linked to a collaboration</option>
@@ -582,7 +638,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                         </select>
                         <div
                             role={collaborationFeedback?.type === "error" ? "alert" : "status"}
-                            className={`mt-2 rounded-md border px-3 py-2 text-xs leading-5 ${
+                            aria-live="polite"
+                            className={`mt-3 rounded-md border px-3 py-2 text-xs leading-5 ${
                                 collaborationFeedback?.type === "error"
                                     ? "border-red-200 bg-red-50 text-red-700"
                                     : isUpdatingCollaboration
@@ -596,17 +653,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                                     ? "Linked collaboration is saved automatically."
                                     : "No collaboration is linked. Changes save automatically.")}
                         </div>
-                        <p className="mt-2 text-xs leading-5 text-slate-500">You can link your own post or a collaboration where your application was accepted. Each post can have one moodboard.</p>
-                        {settingsFeedback && <p
-                            role={settingsFeedback.type === "error" ? "alert" : "status"}
-                            className={`mt-5 rounded-md border p-3 text-sm ${settingsFeedback.type === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-800"}`}
-                        >
-                            {settingsFeedback.message}
-                        </p>}
-                        {Object.keys(captionDrafts).length > 0 && <p className="mt-4 text-xs text-amber-700">You have unsaved photo caption changes.</p>}
-                        <p className="mt-5 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500">Save gallery details to apply changes to the title, description, gallery type, and captions.</p>
-                        <button type="submit" disabled={isSaving} className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving gallery details…" : "Save gallery details"}</button>
-                    </form>
+                        <p className="mt-3 text-xs leading-5 text-slate-500">{gallery.purpose === 1 ? "Each collaboration post can have one moodboard, linked by its owner or an accepted collaborator." : "Accepted collaborators can each link portfolio work to the same collaboration."}</p>
+                    </section>
 
                     <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                         <h2 className="text-lg font-semibold">Visibility</h2>
@@ -627,6 +675,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                         </>}
                         <button type="button" disabled={isPublishing || (!gallery.isPublished && photos.length === 0)} onClick={changePublication} className="mt-4 w-full rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">{isPublishing ? "Updating…" : gallery.isPublished ? "Unpublish gallery" : "Publish gallery"}</button>
                     </section>
+
                     <section className="mt-5 rounded-lg border border-red-200 bg-red-50 p-5 shadow-sm">
                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-700">Danger zone</p>
                         <h2 className="mt-1 text-lg font-semibold text-slate-900">Delete this {gallery.purpose === 1 ? "moodboard" : "portfolio"}</h2>
@@ -1026,10 +1075,47 @@ function ThumbnailSettings({
     </>;
 }
 
-function InsertPhotoButton({ label, isUploading, onClick }: { label: string; isUploading: boolean; onClick: () => void }) {
+function InsertPhotoButton({ label, isUploading, onClick, onEmbed }: { label: string; isUploading: boolean; onClick: () => void; onEmbed: () => void }) {
+    const buttonClass = "rounded-md border border-dashed border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60";
     return <div className="group relative flex min-h-8 items-center justify-center bg-slate-50 py-1.5">
-        <button type="button" disabled={isUploading} onClick={onClick} className="rounded-md border border-dashed border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 opacity-100 transition hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100">{isUploading ? "Uploading…" : `＋ ${label}`}</button>
+        <div className="flex flex-wrap justify-center gap-2 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+            <button type="button" disabled={isUploading} onClick={onClick} className={buttonClass}>{isUploading ? "Saving…" : `＋ ${label}`}</button>
+            <button type="button" disabled={isUploading} onClick={onEmbed} className={buttonClass}>＋ Add embed video</button>
+        </div>
     </div>;
+}
+
+function YoutubeEmbedDialog({ onSave, onClose, isSaving }: {
+    onSave: (embedCode: string) => Promise<void>;
+    onClose: () => void;
+    isSaving: boolean;
+}) {
+    const dialogRef = useRef<HTMLDialogElement>(null);
+    const [embedCode, setEmbedCode] = useState("");
+    const [error, setError] = useState("");
+    useEffect(() => {
+        const dialog = dialogRef.current;
+        const previous = document.activeElement as HTMLElement | null;
+        dialog?.showModal();
+        return () => { dialog?.close(); previous?.focus(); };
+    }, []);
+    return <dialog ref={dialogRef} aria-labelledby="youtube-embed-title" onCancel={(event) => { event.preventDefault(); if (!isSaving) onClose(); }} className="fixed inset-0 m-auto w-[calc(100%_-_2rem)] max-w-lg rounded-xl bg-white p-6 text-slate-900 shadow-xl backdrop:bg-black/60">
+        <form onSubmit={async (event) => {
+            event.preventDefault();
+            setError("");
+            try { await onSave(embedCode); } catch (cause) { setError(errorMessage(cause, "Could not add the video.")); }
+        }}>
+            <h2 id="youtube-embed-title" className="text-xl font-semibold">Add YouTube video</h2>
+            <p className="mt-2 text-sm text-slate-600">On YouTube, choose Share → Embed, then paste the iframe code below.</p>
+            <label htmlFor="youtube-embed-code" className="mt-5 block text-sm font-medium">YouTube embed code</label>
+            <textarea id="youtube-embed-code" autoFocus required maxLength={10000} rows={5} value={embedCode} onChange={(event) => setEmbedCode(event.target.value)} disabled={isSaving} placeholder={'<iframe src="https://www.youtube.com/embed/…"></iframe>'} className="mt-2 w-full rounded-md border border-slate-300 p-3 text-sm focus:outline-blue-500" />
+            {error && <p role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            <div className="mt-5 flex justify-end gap-3">
+                <button type="button" onClick={onClose} disabled={isSaving} className="rounded-md border border-slate-300 px-4 py-2 text-sm disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={isSaving || !embedCode.trim()} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{isSaving ? "Adding…" : "Add video"}</button>
+            </div>
+        </form>
+    </dialog>;
 }
 
 function UnsortedTray({
