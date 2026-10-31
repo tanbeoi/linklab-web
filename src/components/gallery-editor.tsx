@@ -658,7 +658,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
 
                     <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                         <h2 className="text-lg font-semibold">Visibility</h2>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">{gallery.isPublished ? "Published galleries appear in Public Galleries and can be opened by anyone with the link." : "Draft galleries are visible only to you. Add at least one photo before publishing."}</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">{gallery.isPublished ? "Published galleries appear in Public Galleries and can be opened by anyone with the link." : gallery.purpose === 1 ? "Draft galleries are visible only to you. Add at least one photo before publishing." : "Draft galleries are visible only to you. Add at least one photo or embedded YouTube video before publishing."}</p>
                         {gallery.isPublished && <>
                             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
                                 <Link href={`/galleries/${gallery.id}`} className="text-sm font-medium text-blue-700 hover:underline">Open public gallery ↗</Link>
