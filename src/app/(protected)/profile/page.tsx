@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { ProfileContentViews } from "@/components/profile-content-views";
 import { ProfileAvatar } from "@/components/profile-avatar";
+import { FullPageLink } from "@/components/full-page-link";
 import { ProfileCover } from "@/components/profile-cover";
 import { UserProfileLink } from "@/components/user-profile-link";
 import { useAuth } from "@/contexts/auth-context";
@@ -75,8 +76,8 @@ export default function ProfilePage() {
                             <Link href={`/profiles/${user.id}`} className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">View public profile ↗</Link>
                             <Link href="/chats" className="rounded-md border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-800 shadow-sm hover:bg-violet-100">Open chats</Link>
                             <Link href="/posts/new" className="rounded-md bg-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-amber-700">Create collab post</Link>
-                            <Link href="/galleries/new?type=moodboard" className="rounded-md bg-violet-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-800">Create moodboard</Link>
-                            <Link href="/galleries/new?type=portfolio" className="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700">Create portfolio</Link>
+                            <FullPageLink href="/galleries/new?type=moodboard" className="rounded-md bg-violet-700 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-violet-800">Create moodboard</FullPageLink>
+                            <FullPageLink href="/galleries/new?type=portfolio" className="rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700">Create portfolio</FullPageLink>
                         </div>
                     </div>
                     <p className="mt-5 max-w-2xl leading-7 text-slate-600">Manage your posts, moodboards, portfolios, and collaboration applications.</p>

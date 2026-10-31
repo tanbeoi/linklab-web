@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
+import { FullPageLink } from "@/components/full-page-link";
 import { UserProfileLink } from "@/components/user-profile-link";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/api";
@@ -105,7 +106,7 @@ function PublicGalleriesContent() {
                                 <option value="portfolio">Portfolios</option>
                             </select>
                         </label>
-                        {isAuthenticated && <Link href={createHref} className={`rounded-md px-4 py-2.5 text-sm font-medium text-white shadow-sm ${createClassName}`}>{createLabel}</Link>}
+                        {isAuthenticated && <FullPageLink href={createHref} className={`rounded-md px-4 py-2.5 text-sm font-medium text-white shadow-sm ${createClassName}`}>{createLabel}</FullPageLink>}
                     </div>
                 </div>
                 <p className="mt-3 max-w-2xl leading-7 text-slate-600">

@@ -21,7 +21,7 @@ function CreateGalleryForm() {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [purpose, setPurpose] = useState<GalleryPurpose>(() => purposeFromSearch(searchParams.get("type")));
-    const [collabPostId, setCollabPostId] = useState("");
+    const [collabPostId, setCollabPostId] = useState(() => searchParams.get("collabPostId") ?? "");
     const [collaborations, setCollaborations] = useState<{ id: string; title: string }[]>([]);
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);

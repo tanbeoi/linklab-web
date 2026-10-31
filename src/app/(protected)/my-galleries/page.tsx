@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
+import { FullPageLink } from "@/components/full-page-link";
 import { ProjectActivityView } from "@/components/profile-content-views";
 import { apiRequest } from "@/lib/api";
 import { useGalleryNavigation } from "@/lib/use-gallery-navigation";
@@ -100,7 +101,7 @@ export default function MyGalleriesPage() {
                                 <option value="portfolio">Portfolios</option>
                             </select>
                         </label>}
-                        {view === "galleries" && <Link href={createHref} className={`rounded-md px-4 py-2.5 text-sm font-medium text-white shadow-sm ${createClassName}`}>{createLabel}</Link>}
+                        {view === "galleries" && <FullPageLink href={createHref} className={`rounded-md px-4 py-2.5 text-sm font-medium text-white shadow-sm ${createClassName}`}>{createLabel}</FullPageLink>}
                     </div>
                 </header>
 
@@ -124,7 +125,7 @@ export default function MyGalleriesPage() {
                     <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
                         <p className="font-medium text-slate-800">No {filter === "all" ? "galleries" : filter === "moodboard" ? "moodboards" : "portfolios"} yet.</p>
                         <p className="mt-2 text-sm text-slate-600">Create one to start building your project story.</p>
-                        <Link href={createHref} className={`mt-4 inline-flex rounded-md px-4 py-2 text-sm font-medium text-white ${createClassName}`}>{createLabel}</Link>
+                        <FullPageLink href={createHref} className={`mt-4 inline-flex rounded-md px-4 py-2 text-sm font-medium text-white ${createClassName}`}>{createLabel}</FullPageLink>
                     </div>
                 ) : (
                     <section className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" aria-label="Your galleries">

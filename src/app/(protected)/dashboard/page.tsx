@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
+
+import { FullPageLink } from "@/components/full-page-link";
 import collabPostHero from "../../../../public/hero/collabpost.jpg";
 import homepageOne from "../../../../public/hero/homepage1.jpg";
 import homepageSix from "../../../../public/hero/homepage6.jpg";
@@ -63,7 +65,7 @@ export default function DashboardPage() {
                                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">02 · Moodboard</p>
                                     <h3 className="mt-3 max-w-md text-2xl font-semibold tracking-tight">Use this when the project needs a visual brief.</h3>
                                     <p className="mt-4 max-w-lg leading-7 text-slate-600">Upload and arrange references that show the look, feeling, and direction. Link it to a collab post so applicants can see the vision.</p>
-                                    <div className="mt-7 flex flex-wrap gap-x-5 gap-y-3"><Link href="/galleries/new?type=moodboard" className="font-semibold text-violet-700 hover:underline">Create a moodboard →</Link><Link href="/galleries?type=moodboard" className="font-medium text-slate-600 hover:text-violet-700 hover:underline">Explore moodboards</Link></div>
+                                    <div className="mt-7 flex flex-wrap gap-x-5 gap-y-3"><FullPageLink href="/galleries/new?type=moodboard" className="font-semibold text-violet-700 hover:underline">Create a moodboard →</FullPageLink><Link href="/galleries?type=moodboard" className="font-medium text-slate-600 hover:text-violet-700 hover:underline">Explore moodboards</Link></div>
                                 </div>
                                 <figure className="relative min-h-72 overflow-hidden bg-violet-100 sm:min-h-80 md:order-1">
                                     <Image fill sizes="(max-width: 767px) calc(100vw - 2rem), 50vw" src={moodboardHero} alt="A LinkLab moodboard arranged with visual reference images" className="object-cover object-[center_28%]" />
@@ -77,7 +79,7 @@ export default function DashboardPage() {
                                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">03 · Portfolio</p>
                                     <h3 className="mt-3 max-w-md text-2xl font-semibold tracking-tight">Use this when you have finished work to share.</h3>
                                     <p className="mt-4 max-w-lg leading-7 text-slate-600">Upload the final images, link the gallery back to the collab post, then publish it to show the outcome of the project.</p>
-                                    <div className="mt-7 flex flex-wrap gap-x-5 gap-y-3"><Link href="/galleries/new?type=portfolio" className="font-semibold text-blue-700 hover:underline">Create a portfolio →</Link><Link href="/galleries?type=portfolio" className="font-medium text-slate-600 hover:text-blue-700 hover:underline">Explore portfolios</Link></div>
+                                    <div className="mt-7 flex flex-wrap gap-x-5 gap-y-3"><FullPageLink href="/galleries/new?type=portfolio" className="font-semibold text-blue-700 hover:underline">Create a portfolio →</FullPageLink><Link href="/galleries?type=portfolio" className="font-medium text-slate-600 hover:text-blue-700 hover:underline">Explore portfolios</Link></div>
                                 </div>
                                 <figure className="relative min-h-72 overflow-hidden bg-blue-100 sm:min-h-80">
                                     <Image fill sizes="(max-width: 767px) calc(100vw - 2rem), 50vw" src="/hero/portfolio.JPG" alt="A finished fashion portrait representing portfolio work" className="object-cover object-[center_20%]" />
