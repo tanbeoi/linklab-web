@@ -157,7 +157,7 @@ export default function MyGalleriesPage() {
                                     <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">{galleryPurposeLabels[gallery.purpose]}</span>
                                 </div>
                                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                                    <span>{gallery.photoCount} {gallery.photoCount === 1 ? "photo" : "photos"}</span>
+                                    <span>{gallery.photoCount} {gallery.purpose === 1 ? (gallery.photoCount === 1 ? "photo" : "photos") : (gallery.photoCount === 1 ? "item" : "items")}</span>
                                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{gallery.isPublished ? "Published" : "Draft"}</span>
                                 </div>
                                 <p className="mt-2 break-words text-sm text-slate-500">{gallery.collabPostTitle ? `Linked post: ${gallery.collabPostTitle}` : "Not linked to a post"}</p>
