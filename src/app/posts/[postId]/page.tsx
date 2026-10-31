@@ -82,6 +82,7 @@ export default function PostPage() {
                         <h1 className="mt-2 break-words text-3xl font-bold tracking-tight sm:text-4xl">{post.title}</h1>
                     </div>
                     {isOwner ? <Link href={`/my-posts/${post.id}/edit`} className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-950 hover:bg-amber-100">Edit post</Link>
+                        : applicationStatus === "Accepted" ? <Link href={{ pathname: "/chats", query: { post: post.id } }} className="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">Go to chat</Link>
                         : applicationStatus ? <span role="status" title={`Your application is ${applicationStatus.toLowerCase()}.`} className={`rounded-md px-4 py-2 text-sm font-medium ${applicationStatusClassName(applicationStatus)}`}>{applicationStatusLabel(applicationStatus)}</span>
                         : post.isClosed ? <span role="status" className="rounded-md border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">Closed</span>
                         : <Link href={`/posts/${post.id}/apply`} className="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">Apply to collaborate</Link>}
