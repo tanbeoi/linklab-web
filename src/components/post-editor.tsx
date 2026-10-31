@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/contexts/auth-context";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
@@ -37,6 +38,7 @@ function GalleryPreview({ gallery, photos }: { gallery: GalleryPreviewSource; ph
 }
 
 export function PostEditor({ postId }: { postId: string }) {
+    const router = useRouter();
     const { user, isLoading: isAuthLoading } = useAuth();
     const [post, setPost] = useState<CollabPost | null>(null);
     const [galleries, setGalleries] = useState<Gallery[]>([]);
@@ -48,6 +50,7 @@ export function PostEditor({ postId }: { postId: string }) {
     const [notice, setNotice] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isDeletingPost, setIsDeletingPost] = useState(false);
 
     async function load() {
         setIsLoading(true);
@@ -109,6 +112,27 @@ export function PostEditor({ postId }: { postId: string }) {
             setError(cause instanceof Error ? cause.message : "Could not save this post.");
         } finally {
             setIsSaving(false);
+        }
+    }
+
+    async function deletePost() {
+        if (!post) return;
+
+        const confirmed = window.confirm(
+            `Delete \"${post.title}\"? This permanently deletes the post and its applications. Linked galleries will remain available, but will no longer be linked to this post. This cannot be undone.`,
+        );
+        if (!confirmed) return;
+
+        setIsDeletingPost(true);
+        setError("");
+        setNotice("");
+
+        try {
+            await apiRequest<void>(`/api/posts/${post.id}`, { method: "DELETE" });
+            router.back();
+        } catch (cause) {
+            setError(cause instanceof Error ? cause.message : "Could not delete this post.");
+            setIsDeletingPost(false);
         }
     }
 
@@ -237,6 +261,20 @@ export function PostEditor({ postId }: { postId: string }) {
                     </div>
                     <button type="button" onClick={() => void updateClosure(!post.isClosed)} disabled={isSaving} className={`rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:bg-slate-400 disabled:text-white ${post.isClosed ? "bg-slate-800 text-white hover:bg-slate-900" : "border border-amber-300 bg-white text-amber-900 hover:bg-amber-100"}`}>{post.isClosed ? "Reopen applications" : "Close post"}</button>
                 </div>
+            </section>
+
+            <section className="mt-5 rounded-xl border border-red-200 bg-red-50 p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-700">Danger zone</p>
+                <h2 className="mt-1 text-xl font-semibold">Delete post</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-700">This permanently removes the post and all applications to it. Any linked moodboard or portfolio remains in its owner&apos;s galleries, but will be unlinked from this post.</p>
+                <button
+                    type="button"
+                    onClick={() => { void deletePost(); }}
+                    disabled={isDeletingPost}
+                    className="mt-4 rounded-md bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                >
+                    {isDeletingPost ? "Deleting post…" : "Delete post"}
+                </button>
             </section>
 
             <div className="mt-5 grid gap-5">
