@@ -10,6 +10,9 @@ export type CollabPost = {
     ownerDisplayName: string;
     moodboardPreviewImageUrls: string[];
     moodboardPhotoCount: number;
+    // Available for a post owner even when the linked moodboard is still private
+    // or does not have photos yet.
+    hasLinkedMoodboard?: boolean;
     portfolioGalleries: PortfolioGalleryPreview[];
     hasCurrentUserApplied: boolean;
     currentUserApplicationStatus?: ApplicationStatus | null;

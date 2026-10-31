@@ -6,6 +6,7 @@ import { ApplicationStatus, CollabPost, PagedResponse } from "@/types/posts";
 import { ApplicationForm } from "@/components/application-form";
 import { useAuth } from "@/contexts/auth-context";
 import { MoodboardThumbnail } from "@/components/moodboard-thumbnail";
+import { FullPageLink } from "@/components/full-page-link";
 import { UserProfileLink } from "@/components/user-profile-link";
 import { useGalleryNavigation } from "@/lib/use-gallery-navigation";
 import Link from "next/link";
@@ -227,6 +228,30 @@ export default function ListPostsPage() {
                                         portfolioGalleries.length === 1
                                             ? portfolioGalleries[0]
                                             : null;
+                                    const hasLinkedMoodboard =
+                                        post.hasLinkedMoodboard ??
+                                        (post.moodboardPhotoCount > 0 || previewImages.length > 0);
+                                    const galleryPrompt = isOwnPost && !hasLinkedMoodboard
+                                        ? {
+                                            title: "Visualise your vision",
+                                            description: "Create a moodboard to give collaborators a shared visual direction.",
+                                            href: `/galleries/new?type=moodboard&collabPostId=${encodeURIComponent(post.id)}`,
+                                            action: "Create a moodboard →",
+                                            className: "border-violet-200 bg-violet-50/70",
+                                            titleClassName: "text-violet-800",
+                                            linkClassName: "text-violet-700 hover:text-violet-900",
+                                        }
+                                        : isOwnPost && portfolioGalleries.length === 0
+                                            ? {
+                                                title: "Show the final result",
+                                                description: "Create a portfolio gallery to share what this collaboration became.",
+                                                href: `/galleries/new?type=portfolio&collabPostId=${encodeURIComponent(post.id)}`,
+                                                action: "Create a portfolio →",
+                                                className: "border-blue-200 bg-blue-50/70",
+                                                titleClassName: "text-blue-800",
+                                                linkClassName: "text-blue-700 hover:text-blue-900",
+                                            }
+                                            : null;
 
                                     const remainingImageCount = Math.max(
                                         post.moodboardPhotoCount - previewImages.length,
@@ -394,6 +419,26 @@ export default function ListPostsPage() {
                                                                 ))}
                                                             </div>
                                                         </section>
+                                                    )}
+
+                                                    {galleryPrompt && (
+                                                        <aside
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            className={`mt-5 rounded-xl border p-4 ${galleryPrompt.className}`}
+                                                        >
+                                                            <p className={`font-semibold ${galleryPrompt.titleClassName}`}>
+                                                                {galleryPrompt.title}
+                                                            </p>
+                                                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                                                                {galleryPrompt.description}
+                                                            </p>
+                                                            <FullPageLink
+                                                                href={galleryPrompt.href}
+                                                                className={`mt-3 inline-flex text-sm font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 ${galleryPrompt.linkClassName}`}
+                                                            >
+                                                                {galleryPrompt.action}
+                                                            </FullPageLink>
+                                                        </aside>
                                                     )}
 
                                                     <div className="mt-4 space-y-1 text-sm text-slate-500 sm:flex sm:items-center sm:gap-4 sm:space-y-0">
