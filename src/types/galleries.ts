@@ -32,6 +32,8 @@ export type Photo = {
     galleryId: string;
     objectKey: string;
     imageUrl: string;
+    youtubeVideoId?: string | null;
+    videoAspectRatio?: number | null;
     caption: string | null;
     sortOrder: number;
     boardX: number | null;
