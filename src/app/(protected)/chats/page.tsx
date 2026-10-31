@@ -85,6 +85,7 @@ function ChatsContent() {
 
     const requestedUserId = searchParams.get("with");
     const requestedDisplayName = searchParams.get("name")?.trim() || "LinkLab creator";
+    const requestedCollaborationPostId = searchParams.get("post");
 
     useEffect(() => {
         if (isAuthLoading || !user) return;
@@ -130,6 +131,15 @@ function ChatsContent() {
         }, 0);
         return () => window.clearTimeout(startTimer);
     }, [requestedDisplayName, requestedUserId, user]);
+
+    useEffect(() => {
+        if (!requestedCollaborationPostId) return;
+        const selectTimer = window.setTimeout(() => {
+            setView("collaboration");
+            setSelectedChatId(`collaboration:${requestedCollaborationPostId}`);
+        }, 0);
+        return () => window.clearTimeout(selectTimer);
+    }, [requestedCollaborationPostId]);
 
     const visibleChats = useMemo(() => {
         const direct = directChats.map((chat) => ({ kind: "direct" as const, id: `direct:${chat.userId}`, chat }));
