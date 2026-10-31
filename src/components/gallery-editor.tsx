@@ -67,6 +67,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const [photoUploadPreview, setPhotoUploadPreview] = useState<PhotoUploadPreview | null>(null);
     const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
     const [isPublishing, setIsPublishing] = useState(false);
+    const [isDeletingGallery, setIsDeletingGallery] = useState(false);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [settingsFeedback, setSettingsFeedback] = useState<{
@@ -80,6 +81,28 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
 
     function finishEditing() {
         window.history.back();
+    }
+
+    async function deleteGallery() {
+        if (!gallery) return;
+
+        const galleryKind = gallery.purpose === 1 ? "moodboard" : "portfolio";
+        const confirmed = window.confirm(
+            `Delete \"${gallery.title}\"? This permanently deletes this ${galleryKind} and all of its media. This cannot be undone.`,
+        );
+        if (!confirmed) return;
+
+        setIsDeletingGallery(true);
+        setError("");
+        setNotice("");
+
+        try {
+            await apiRequest<void>(`/api/galleries/${gallery.id}`, { method: "DELETE" });
+            finishEditing();
+        } catch (cause) {
+            setError(errorMessage(cause, "Could not delete the gallery."));
+            setIsDeletingGallery(false);
+        }
     }
 
     useEffect(() => {
@@ -603,6 +626,19 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                             </p>}
                         </>}
                         <button type="button" disabled={isPublishing || (!gallery.isPublished && photos.length === 0)} onClick={changePublication} className="mt-4 w-full rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">{isPublishing ? "Updating…" : gallery.isPublished ? "Unpublish gallery" : "Publish gallery"}</button>
+                    </section>
+                    <section className="mt-5 rounded-lg border border-red-200 bg-red-50 p-5 shadow-sm">
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-700">Danger zone</p>
+                        <h2 className="mt-1 text-lg font-semibold text-slate-900">Delete this {gallery.purpose === 1 ? "moodboard" : "portfolio"}</h2>
+                        <p className="mt-2 text-sm leading-6 text-slate-700">Permanently remove this gallery and all of its media. This cannot be undone.</p>
+                        <button
+                            type="button"
+                            onClick={() => { void deleteGallery(); }}
+                            disabled={isDeletingGallery}
+                            className="mt-4 w-full rounded-md bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                        >
+                            {isDeletingGallery ? "Deleting…" : `Delete ${gallery.purpose === 1 ? "moodboard" : "portfolio"}`}
+                        </button>
                     </section>
                 </aside>
             </div>
