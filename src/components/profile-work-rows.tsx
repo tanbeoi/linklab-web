@@ -86,7 +86,7 @@ function GalleryCard({ gallery, isOwner }: { gallery: Gallery; isOwner: boolean 
                     <h3 className="truncate font-semibold text-slate-900 group-hover:text-blue-700">{gallery.title}</h3>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${color === "violet" ? "bg-violet-50 text-violet-700" : "bg-blue-50 text-blue-700"}`}>{kind}</span>
                 </div>
-                <p className="mt-2 text-sm text-slate-500">{gallery.photoCount} {gallery.photoCount === 1 ? "photo" : "photos"}{isOwner && ` · ${gallery.isPublished ? "Published" : "Draft"}`}</p>
+                <p className="mt-2 text-sm text-slate-500">{gallery.photoCount} {gallery.purpose === 1 ? (gallery.photoCount === 1 ? "photo" : "photos") : (gallery.photoCount === 1 ? "item" : "items")}{isOwner && ` · ${gallery.isPublished ? "Published" : "Draft"}`}</p>
             </div>
         </Link>
     );

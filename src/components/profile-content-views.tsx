@@ -40,7 +40,7 @@ function PortfolioOutcomeCard({ gallery, onOpen }: { gallery: PortfolioGalleryPr
                     <p className="truncate font-semibold text-slate-900 group-hover:text-blue-700">{gallery.title}</p>
                     <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Portfolio</span>
                 </div>
-                <p className="mt-1 text-sm text-slate-500">{gallery.photoCount} {gallery.photoCount === 1 ? "photo" : "photos"}</p>
+                <p className="mt-1 text-sm text-slate-500">{gallery.photoCount} {gallery.photoCount === 1 ? "item" : "items"}</p>
             </div>
         </button>
     );
