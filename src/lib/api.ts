@@ -48,6 +48,9 @@ export async function apiRequest<T>(
 
     const response = await fetch(`${API_URL}${path}`, {
         ...options,
+        // LinkLab's API responses are user-specific and frequently change after
+        // mutations. Avoid showing a cached version immediately after a save.
+        cache: options.cache ?? "no-store",
         headers,
     });
 

@@ -53,6 +53,13 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({});
     const [collaborations, setCollaborations] = useState<CollaborationOption[]>([]);
+    const [selectedCollabPostId, setSelectedCollabPostId] = useState("");
+    const [collaborationSelectVersion, setCollaborationSelectVersion] = useState(0);
+    const [isUpdatingCollaboration, setIsUpdatingCollaboration] = useState(false);
+    const [collaborationFeedback, setCollaborationFeedback] = useState<{
+        type: "success" | "error";
+        message: string;
+    } | null>(null);
     const [insertionPoint, setInsertionPoint] = useState<InsertionPoint>({ insertAtStart: true });
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -97,6 +104,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 acceptedApplications.items.forEach((application) => options.set(application.postId, application.postTitle));
 
                 setGallery(galleryData);
+                setSelectedCollabPostId(galleryData.collabPostId ?? "");
+                setCollaborationFeedback(null);
                 setPhotos(photoData);
                 setCaptionDrafts({});
                 setCollaborations([...options].map(([id, title]) => ({ id, title })));
@@ -220,14 +229,6 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 body: JSON.stringify(request),
             });
 
-            const collabPostId = String(formData.get("collabPostId") ?? "") || null;
-            if (collabPostId !== gallery.collabPostId) {
-                await apiRequest<unknown>(`/api/galleries/${gallery.id}/collab-post`, {
-                    method: "PATCH",
-                    body: JSON.stringify({ collabPostId } satisfies UpdateGalleryCollabPostRequest),
-                });
-            }
-
             const editedCaptions = Object.entries(captionDrafts).map(([photoId, caption]) => ({
                 photoId,
                 caption,
@@ -246,11 +247,11 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
             setGallery((current) => current ? {
                 ...current,
                 ...saved,
-                collabPostId,
-                collabPostTitle: collabPostId
-                    ? collaborations.find((option) => option.id === collabPostId)?.title ?? null
-                    : null,
             } : current);
+            // React resets native form controls after a successful form action.
+            // Remount this independently saved selector so it is painted from its
+            // current saved value rather than the form's reset default.
+            setCollaborationSelectVersion((current) => current + 1);
             setSettingsFeedback({
                 type: "success",
                 message: "Gallery changes saved.",
@@ -262,6 +263,49 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
             });
         } finally {
             setIsSaving(false);
+        }
+    }
+
+    async function updateCollaboration(nextCollabPostId: string) {
+        if (!gallery || isUpdatingCollaboration) return;
+
+        const previousCollabPostId = gallery.collabPostId ?? "";
+        if (nextCollabPostId === previousCollabPostId) return;
+
+        setSelectedCollabPostId(nextCollabPostId);
+        setCollaborationFeedback(null);
+        setIsUpdatingCollaboration(true);
+
+        try {
+            const linkResult = await apiRequest<Pick<Gallery, "id" | "collabPostId">>(`/api/galleries/${gallery.id}/collab-post`, {
+                method: "PATCH",
+                body: JSON.stringify({ collabPostId: nextCollabPostId || null } satisfies UpdateGalleryCollabPostRequest),
+            });
+            const savedCollabPostId = linkResult.collabPostId ?? null;
+            const collaborationTitle = savedCollabPostId
+                ? collaborations.find((option) => option.id === savedCollabPostId)?.title
+                : null;
+
+            setGallery((current) => current ? {
+                ...current,
+                collabPostId: savedCollabPostId,
+                collabPostTitle: collaborationTitle ?? null,
+            } : current);
+            setSelectedCollabPostId(savedCollabPostId ?? "");
+            setCollaborationFeedback({
+                type: "success",
+                message: savedCollabPostId
+                    ? `Linked to ${collaborationTitle ?? "the selected collaboration"}.`
+                    : "Gallery unlinked from its collaboration.",
+            });
+        } catch (cause) {
+            setSelectedCollabPostId(previousCollabPostId);
+            setCollaborationFeedback({
+                type: "error",
+                message: errorMessage(cause, "Could not update the collaboration link."),
+            });
+        } finally {
+            setIsUpdatingCollaboration(false);
         }
     }
 
@@ -502,10 +546,33 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                             {Object.entries(galleryPurposeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                         </select>
                         <label className="mt-4 block text-sm font-medium" htmlFor="gallery-collaboration">Linked collaboration</label>
-                        <select id="gallery-collaboration" name="collabPostId" defaultValue={gallery.collabPostId ?? ""} className="mt-1.5 w-full rounded-md border border-slate-300 bg-white px-3 py-2">
+                        <select
+                            key={collaborationSelectVersion}
+                            id="gallery-collaboration"
+                            value={selectedCollabPostId}
+                            onChange={(event) => { void updateCollaboration(event.target.value); }}
+                            disabled={isUpdatingCollaboration}
+                            className="mt-1.5 w-full rounded-md border border-slate-300 bg-white px-3 py-2 disabled:cursor-wait disabled:bg-slate-100"
+                        >
                             <option value="">Not linked to a collaboration</option>
                             {collaborations.map((option) => <option key={option.id} value={option.id}>{option.title}</option>)}
                         </select>
+                        <div
+                            role={collaborationFeedback?.type === "error" ? "alert" : "status"}
+                            className={`mt-2 rounded-md border px-3 py-2 text-xs leading-5 ${
+                                collaborationFeedback?.type === "error"
+                                    ? "border-red-200 bg-red-50 text-red-700"
+                                    : isUpdatingCollaboration
+                                        ? "border-blue-200 bg-blue-50 text-blue-700"
+                                        : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                            }`}
+                        >
+                            {collaborationFeedback?.message ?? (isUpdatingCollaboration
+                                ? "Saving collaboration link…"
+                                : selectedCollabPostId
+                                    ? "Linked collaboration is saved automatically."
+                                    : "No collaboration is linked. Changes save automatically.")}
+                        </div>
                         <p className="mt-2 text-xs leading-5 text-slate-500">You can link your own post or a collaboration where your application was accepted. Each post can have one moodboard.</p>
                         {settingsFeedback && <p
                             role={settingsFeedback.type === "error" ? "alert" : "status"}
@@ -514,6 +581,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                             {settingsFeedback.message}
                         </p>}
                         {Object.keys(captionDrafts).length > 0 && <p className="mt-4 text-xs text-amber-700">You have unsaved photo caption changes.</p>}
+                        <p className="mt-5 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500">Save gallery details to apply changes to the title, description, gallery type, and captions.</p>
                         <button type="submit" disabled={isSaving} className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving gallery details…" : "Save gallery details"}</button>
                     </form>
 
