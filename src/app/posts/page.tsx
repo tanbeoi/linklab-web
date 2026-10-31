@@ -474,6 +474,15 @@ export default function ListPostsPage() {
                                                                 View applicants
                                                             </Link>
                                                         </>
+                                                    ) : applicationStatus === "Accepted" ? (
+                                                        <Link
+                                                            href={{ pathname: "/chats", query: { post: post.id } }}
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            title="Open this collaboration's chat"
+                                                            className="inline-flex w-full items-center justify-center rounded-md border border-emerald-300 bg-emerald-50 px-5 py-2.5 text-sm font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 sm:w-auto"
+                                                        >
+                                                            Go to chat
+                                                        </Link>
                                                     ) : isApplyDisabled ? (
                                                         <button
                                                             type="button"
@@ -605,6 +614,19 @@ export default function ListPostsPage() {
                                 >
                                     This is your post, so you cannot apply to it.
                                 </p>
+                            ) : applicationStatusForPost(selectedPost) === "Accepted" ? (
+                                <div
+                                    role="status"
+                                    className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+                                >
+                                    <p>Your application was accepted.</p>
+                                    <Link
+                                        href={{ pathname: "/chats", query: { post: selectedPost.id } }}
+                                        className="mt-3 inline-flex rounded-md border border-emerald-300 bg-white px-3 py-2 font-semibold text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+                                    >
+                                        Go to chat
+                                    </Link>
+                                </div>
                             ) : applicationStatusForPost(selectedPost) ? (
                                 <p
                                     role="status"
