@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,21 +110,31 @@ export default function RegisterPage() {
           />
         </label>
 
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-zinc-700"
-        >
-          Password
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-            className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-          />
-        </label>
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-zinc-700">
+            Password
+          </label>
+          <div className="relative mt-2">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+              className="w-full rounded-md border border-zinc-300 py-2 pl-3 pr-20 text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-controls="password"
+              className="absolute inset-y-0 right-0 rounded-r-md px-3 text-sm font-medium text-zinc-600 transition hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-emerald-600"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
 
         {error && (
           <p
