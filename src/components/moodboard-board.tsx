@@ -1,6 +1,8 @@
 "use client";
 
-import { DragEvent, MouseEvent, PointerEvent, useEffect, useRef, useState } from "react";
+import { DragEvent, MouseEvent, PointerEvent, useCallback, useEffect, useRef, useState } from "react";
+
+import { flushSync } from "react-dom";
 
 import type { Photo } from "@/types/galleries";
 
@@ -12,6 +14,8 @@ export const MOODBOARD_CAPTION_HEIGHT = 58;
 const MOODBOARD_CAPTION_MIN_HEIGHT = 40;
 const MOODBOARD_CAPTION_MAX_HEIGHT = 320;
 const MOODBOARD_PRESENTATION_PADDING = 80;
+const MIN_BOARD_ZOOM = 0.25;
+const MAX_BOARD_ZOOM = 2;
 
 type BoardPosition = { x: number; y: number };
 export type MoodboardLayout = BoardPosition & {
@@ -244,6 +248,8 @@ export function MoodboardBoard({
     const panRef = useRef<{ pointerId: number; clientX: number; clientY: number; scrollLeft: number; scrollTop: number } | null>(null);
     const [spaceHeld, setSpaceHeld] = useState(false);
     const [isPanning, setIsPanning] = useState(false);
+    const [zoom, setZoom] = useState(1);
+    const zoomRef = useRef(1);
 
     const [interaction, setInteraction] = useState<BoardInteraction | null>(null);
     const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
@@ -329,6 +335,51 @@ export function MoodboardBoard({
         };
     }, [editable]);
 
+    const changeZoom = useCallback((requestedZoom: number, clientX: number, clientY: number) => {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+        const previousZoom = zoomRef.current;
+        const nextZoom = clamp(requestedZoom, MIN_BOARD_ZOOM, MAX_BOARD_ZOOM);
+        if (nextZoom === previousZoom) return;
+        const rect = viewport.getBoundingClientRect();
+        const x = clientX - rect.left - viewport.clientLeft;
+        const y = clientY - rect.top - viewport.clientTop;
+        const canvasX = (viewport.scrollLeft + x) / previousZoom;
+        const canvasY = (viewport.scrollTop + y) / previousZoom;
+        zoomRef.current = nextZoom;
+        // Commit the new scrollable dimensions before restoring the point under
+        // the cursor. This also keeps rapid wheel events in the same coordinate system.
+        flushSync(() => setZoom(nextZoom));
+        viewport.scrollLeft = canvasX * nextZoom - x;
+        viewport.scrollTop = canvasY * nextZoom - y;
+    }, []);
+
+    useEffect(() => {
+        if (!editable) return;
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+        function wheel(event: WheelEvent) {
+            if (!event.metaKey && !event.ctrlKey) return;
+            event.preventDefault();
+            if (panRef.current || interaction) return;
+            const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport!.clientHeight : 1;
+            const delta = clamp(event.deltaY * unit, -200, 200);
+            changeZoom(zoomRef.current * Math.exp(-delta * 0.002), event.clientX, event.clientY);
+        }
+        // React wheel listeners are passive; a native listener lets this prevent
+        // browser page zoom only while the pointer is over the workspace.
+        viewport.addEventListener("wheel", wheel, { passive: false });
+        return () => viewport.removeEventListener("wheel", wheel);
+    }, [editable, interaction, changeZoom]);
+
+    function zoomFromCenter(nextZoom: number) {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+        const rect = viewport.getBoundingClientRect();
+        changeZoom(nextZoom, rect.left + viewport.clientLeft + viewport.clientWidth / 2,
+            rect.top + viewport.clientTop + viewport.clientHeight / 2);
+    }
+
     function beginPan(event: PointerEvent<HTMLDivElement>) {
         suppressPanClickRef.current = false;
         if (!editable || !spaceHeldRef.current || event.button !== 0 || interaction) return;
@@ -370,8 +421,8 @@ export function MoodboardBoard({
         if (!rect) return null;
 
         return clampPosition({
-            x: clientX - rect.left - offsetX,
-            y: clientY - rect.top - offsetY,
+            x: (clientX - rect.left) / zoomRef.current - offsetX,
+            y: (clientY - rect.top) / zoomRef.current - offsetY,
         }, width);
     }
 
@@ -386,8 +437,8 @@ export function MoodboardBoard({
         setInteraction({
             kind: "move",
             photoId: photo.id,
-            offsetX: event.clientX - photoRect.left,
-            offsetY: event.clientY - photoRect.top,
+            offsetX: (event.clientX - photoRect.left) / zoomRef.current,
+            offsetY: (event.clientY - photoRect.top) / zoomRef.current,
             layout,
         });
     }
@@ -450,7 +501,7 @@ export function MoodboardBoard({
 
         if (interaction.kind === "caption-resize") {
             const captionHeight = Math.round(clamp(
-                interaction.originalLayout.captionHeight + event.clientY - interaction.startClientY,
+                interaction.originalLayout.captionHeight + (event.clientY - interaction.startClientY) / zoomRef.current,
                 MOODBOARD_CAPTION_MIN_HEIGHT,
                 MOODBOARD_CAPTION_MAX_HEIGHT,
             ));
@@ -463,8 +514,8 @@ export function MoodboardBoard({
 
         const horizontalMultiplier = handleIncludesWest(interaction.handle) ? -1 : 1;
         const verticalMultiplier = handleIncludesNorth(interaction.handle) ? -1 : 1;
-        const horizontalDelta = (event.clientX - interaction.startClientX) * horizontalMultiplier;
-        const verticalDelta = (event.clientY - interaction.startClientY) * verticalMultiplier * interaction.aspectRatio;
+        const horizontalDelta = (event.clientX - interaction.startClientX) / zoomRef.current * horizontalMultiplier;
+        const verticalDelta = (event.clientY - interaction.startClientY) / zoomRef.current * verticalMultiplier * interaction.aspectRatio;
         const widthDelta = Math.abs(horizontalDelta) >= Math.abs(verticalDelta)
             ? horizontalDelta
             : verticalDelta;
@@ -516,10 +567,19 @@ export function MoodboardBoard({
     }
 
     return (
+        <div className="min-w-0">
+            {editable && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                <p>⌘ / Ctrl + scroll to zoom · Space + drag to pan</p>
+                <div className="flex items-center rounded-md border border-slate-300 bg-white text-slate-700">
+                    <button type="button" aria-label="Zoom out" disabled={zoom <= MIN_BOARD_ZOOM} onClick={() => zoomFromCenter(zoom / 1.2)} className="px-3 py-2 hover:bg-slate-50 disabled:opacity-40">−</button>
+                    <button type="button" aria-label="Reset zoom to 100%" title="Reset zoom to 100%" onClick={() => zoomFromCenter(1)} className="min-w-14 px-2 py-2 tabular-nums hover:bg-slate-50">{Math.round(zoom * 100)}%</button>
+                    <button type="button" aria-label="Zoom in" disabled={zoom >= MAX_BOARD_ZOOM} onClick={() => zoomFromCenter(zoom * 1.2)} className="px-3 py-2 hover:bg-slate-50 disabled:opacity-40">+</button>
+                </div>
+            </div>}
         <div
             ref={viewportRef}
             tabIndex={editable ? 0 : undefined}
-            aria-label={editable ? "Moodboard workspace. Hold Space and drag to pan." : undefined}
+            aria-label={editable ? "Moodboard workspace. Hold Space and drag to pan. Command or Control plus scroll to zoom." : undefined}
             className={`min-w-0 overflow-auto rounded-lg border border-slate-300 bg-slate-100 shadow-sm ${editable ? "h-[75dvh] min-h-80 overscroll-contain focus-visible:outline-2 focus-visible:outline-blue-500" : ""} ${spaceHeld ? "select-none touch-none" : ""} ${isPanning ? "cursor-grabbing [&_*]:!cursor-grabbing" : spaceHeld ? "cursor-grab [&_*]:!cursor-grab" : ""}`}
             onPointerEnter={() => { pointerInsideRef.current = true; }}
             onPointerLeave={() => { pointerInsideRef.current = false; }}
@@ -535,11 +595,13 @@ export function MoodboardBoard({
                 suppressPanClickRef.current = false;
             }}
         >
+            <div className="relative overflow-hidden" style={{ width: MOODBOARD_CANVAS_WIDTH * zoom, height: MOODBOARD_CANVAS_HEIGHT * zoom }}>
             <div
                 ref={boardRef}
                 aria-label={editable ? "Moodboard canvas" : "Moodboard"}
-                className="relative h-[1600px] w-[2400px] bg-white"
+                className="absolute left-0 top-0 h-[1600px] w-[2400px] origin-top-left bg-white"
                 style={{
+                    transform: `scale(${zoom})`,
                     backgroundImage: "radial-gradient(#cbd5e1 1px, transparent 1px)",
                     backgroundSize: "18px 18px",
                 }}
@@ -646,6 +708,8 @@ export function MoodboardBoard({
                     );
                 })}
             </div>
+            </div>
+        </div>
         </div>
     );
 }
