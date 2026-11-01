@@ -174,6 +174,9 @@ export function Navbar() {
                                 </>
                             ) : (
                                 <>
+                                    <Link href="/dashboard" className={desktopLinkClassName}>
+                                        Dashboard
+                                    </Link>
                                     <Link href="/posts" className={desktopLinkClassName}>
                                         Posts
                                     </Link>
@@ -276,6 +279,9 @@ export function Navbar() {
                                     </>
                                 ) : (
                                     <>
+                                        <Link href="/dashboard" onClick={closeMenu} className={mobileLinkClassName}>
+                                            Dashboard
+                                        </Link>
                                         <Link href="/posts" onClick={closeMenu} className={mobileLinkClassName}>
                                             Posts
                                         </Link>
