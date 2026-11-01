@@ -1,5 +1,7 @@
 "use client";
 
+import { UnpublishedGalleryNotice } from "@/components/unpublished-gallery-notice";
+
 import { useState } from "react";
 import Link from "next/link";
 
@@ -40,6 +42,7 @@ function PortfolioOutcomeCard({ gallery, onOpen }: { gallery: PortfolioGalleryPr
                     <p className="truncate font-semibold text-slate-900 group-hover:text-blue-700">{gallery.title}</p>
                     <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Portfolio</span>
                 </div>
+                {gallery.isPublished === false && <UnpublishedGalleryNotice />}
                 <p className="mt-1 text-sm text-slate-500">{gallery.photoCount} {gallery.photoCount === 1 ? "item" : "items"}</p>
             </div>
         </button>
@@ -54,7 +57,7 @@ function ProjectActivityCard({ post, isOwner, onOpenGallery, onOpenPostMoodboard
 }) {
     const moodboardImages = post.moodboardPreviewImageUrls.slice(0, 3);
     const remainingMoodboardImages = Math.max(post.moodboardPhotoCount - moodboardImages.length, 0);
-    const hasLinkedWork = moodboardImages.length > 0 || post.portfolioGalleries.length > 0;
+    const hasLinkedWork = moodboardImages.length > 0 || post.moodboardIsPublished === false || post.portfolioGalleries.length > 0;
 
     return (
         <article className="overflow-hidden rounded-2xl border border-amber-100 bg-white shadow-sm">
@@ -81,10 +84,11 @@ function ProjectActivityCard({ post, isOwner, onOpenGallery, onOpenPostMoodboard
                 </div>
 
                 {hasLinkedWork ? <div className="mt-6 grid items-start gap-4 xl:grid-cols-2">
-                    {moodboardImages.length > 0 && <button type="button" onClick={() => void onOpenPostMoodboard(post.id)}
+                    {(moodboardImages.length > 0 || post.moodboardIsPublished === false) && <button type="button" onClick={() => void onOpenPostMoodboard(post.id)}
                         className="group rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600">
                         <div className="flex items-center gap-3"><span aria-hidden="true" className="h-px w-8 bg-violet-400" /><p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">Creative direction</p></div>
                         <p className="mt-2 text-sm text-slate-600">Moodboard for this collaboration</p>
+                        {post.moodboardIsPublished === false && <UnpublishedGalleryNotice />}
                         <div className="mt-4 flex h-28 overflow-hidden rounded-lg bg-violet-100 sm:h-32">
                             {moodboardImages.map((imageUrl, index) => <div key={imageUrl} className="relative min-w-0 flex-1 overflow-hidden border-r border-white last:border-r-0"><GalleryPreview src={imageUrl} alt={`Moodboard image ${index + 1} for ${post.title}`} /></div>)}
                             {remainingMoodboardImages > 0 && <div className="flex w-20 shrink-0 items-center justify-center bg-slate-950/75 text-xl font-bold text-white">+{remainingMoodboardImages}</div>}
