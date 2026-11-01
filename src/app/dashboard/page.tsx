@@ -4,10 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { FullPageLink } from "@/components/full-page-link";
-import collabPostHero from "../../../../public/hero/collabpost.jpg";
-import homepageOne from "../../../../public/hero/homepage1.jpg";
-import homepageSix from "../../../../public/hero/homepage6.jpg";
-import moodboardHero from "../../../../public/hero/moodboard.png";
+import collabPostHero from "../../../public/hero/collabpost.jpg";
+import homepageOne from "../../../public/hero/homepage1.jpg";
+import homepageSix from "../../../public/hero/homepage6.jpg";
+import moodboardHero from "../../../public/hero/moodboard.png";
 
 import { useAuth } from "@/contexts/auth-context";
 import { UserProfileLink } from "@/components/user-profile-link";
