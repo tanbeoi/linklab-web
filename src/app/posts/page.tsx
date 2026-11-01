@@ -1,5 +1,7 @@
 "use client";
 
+import { UnpublishedGalleryNotice } from "@/components/unpublished-gallery-notice";
+
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { ApplicationStatus, CollabPost, PagedResponse } from "@/types/posts";
@@ -282,7 +284,7 @@ export default function ListPostsPage() {
                                                         {truncateWords(post.description, 50)}
                                                     </p>
 
-                                                    {previewImages.length > 0 && (
+                                                    {(previewImages.length > 0 || post.moodboardIsPublished === false) && (
                                                         <section
                                                             role="button"
                                                             tabIndex={0}
@@ -302,6 +304,7 @@ export default function ListPostsPage() {
                                                                 <span className="h-px w-5 bg-violet-300" />
                                                                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">Creative direction</p>
                                                             </div>
+                                                            {post.moodboardIsPublished === false && <UnpublishedGalleryNotice />}
                                                             <div
                                                                 className={`grid gap-2 ${
                                                                 previewImages.length === 1
@@ -411,6 +414,7 @@ export default function ListPostsPage() {
                                                                                     Portfolio
                                                                                 </span>
                                                                             </div>
+                                                                            {portfolio.isPublished === false && <UnpublishedGalleryNotice />}
                                                                             <p className="mt-1 text-sm text-slate-600">
                                                                                 By <UserProfileLink userId={portfolio.ownerId}>{portfolio.ownerDisplayName}</UserProfileLink>
                                                                             </p>

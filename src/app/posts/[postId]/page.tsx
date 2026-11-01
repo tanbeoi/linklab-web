@@ -1,5 +1,7 @@
 "use client";
 
+import { UnpublishedGalleryNotice } from "@/components/unpublished-gallery-notice";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -94,8 +96,9 @@ export default function PostPage() {
                 </div>
             </header>
 
-            {previewImages.length > 0 && <section role="button" tabIndex={0} onClick={() => void openPostMoodboard(post.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void openPostMoodboard(post.id); } }} className="mt-6 cursor-pointer rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-violet-700 sm:p-6">
+            {(previewImages.length > 0 || post.moodboardIsPublished === false) && <section role="button" tabIndex={0} onClick={() => void openPostMoodboard(post.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void openPostMoodboard(post.id); } }} className="mt-6 cursor-pointer rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-violet-700 sm:p-6">
                 <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">Creative direction</p><h2 className="mt-1 text-2xl font-semibold">Moodboard for this collaboration</h2><p className="mt-2 text-slate-600">Open the moodboard to see the full creative direction.</p></div>
+                {post.moodboardIsPublished === false && <UnpublishedGalleryNotice />}
                 <div className={`mt-5 grid gap-3 ${previewImages.length === 1 ? "grid-cols-1" : previewImages.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
                     {previewImages.map((imageUrl, index) => <div key={imageUrl} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-slate-100 shadow-sm">
                         <MoodboardThumbnail src={imageUrl} alt={`Moodboard image ${index + 1} for ${post.title}`} />
@@ -109,7 +112,7 @@ export default function PostPage() {
                 <div aria-label="Linked portfolio galleries" className="mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-2">
                     {portfolios.map((portfolio) => <article key={portfolio.id} role="link" tabIndex={0} onClick={() => openGallery(portfolio.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openGallery(portfolio.id); } }} className="group w-72 shrink-0 snap-start cursor-pointer overflow-hidden rounded-xl border border-white bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-80">
                         <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">{portfolio.previewImageUrl ? <MoodboardThumbnail src={portfolio.previewImageUrl} alt={`Preview of ${portfolio.title}`} focalPointX={portfolio.thumbnailFocalPointX} focalPointY={portfolio.thumbnailFocalPointY} zoom={portfolio.thumbnailZoom} /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Portfolio gallery</div>}</div>
-                        <div className="p-4"><div className="flex items-center justify-between gap-2"><h3 className="truncate font-semibold group-hover:text-blue-700">{portfolio.title}</h3><span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Portfolio</span></div><p className="mt-1 text-sm text-slate-600">By <UserProfileLink userId={portfolio.ownerId}>{portfolio.ownerDisplayName}</UserProfileLink></p></div>
+                        <div className="p-4"><div className="flex items-center justify-between gap-2"><h3 className="truncate font-semibold group-hover:text-blue-700">{portfolio.title}</h3><span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Portfolio</span></div>{portfolio.isPublished === false && <UnpublishedGalleryNotice />}<p className="mt-1 text-sm text-slate-600">By <UserProfileLink userId={portfolio.ownerId}>{portfolio.ownerDisplayName}</UserProfileLink></p></div>
                     </article>)}
                 </div>
             </section>}
