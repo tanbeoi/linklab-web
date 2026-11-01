@@ -81,13 +81,16 @@ export async function apiRequest<T>(
             response.status,
         );
 
-        const isLoginOrRegistrationRequest =
+        // Session restoration clears an expired token in AuthProvider. It must
+        // not redirect visitors away from public pages such as the dashboard.
+        const isAuthenticationRequest =
             path === "/api/auth/login" ||
-            path === "/api/auth/register";
+            path === "/api/auth/register" ||
+            path === "/api/auth/me";
 
         if (
             response.status === 401 &&
-            !isLoginOrRegistrationRequest &&
+            !isAuthenticationRequest &&
             typeof window !== "undefined"
         ) {
             window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
