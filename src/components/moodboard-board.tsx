@@ -237,6 +237,14 @@ export function MoodboardBoard({
     onDeletePhoto,
 }: MoodboardBoardProps) {
     const boardRef = useRef<HTMLDivElement>(null);
+    const viewportRef = useRef<HTMLDivElement>(null);
+    const spaceHeldRef = useRef(false);
+    const pointerInsideRef = useRef(false);
+    const suppressPanClickRef = useRef(false);
+    const panRef = useRef<{ pointerId: number; clientX: number; clientY: number; scrollLeft: number; scrollTop: number } | null>(null);
+    const [spaceHeld, setSpaceHeld] = useState(false);
+    const [isPanning, setIsPanning] = useState(false);
+
     const [interaction, setInteraction] = useState<BoardInteraction | null>(null);
     const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
     const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
@@ -269,6 +277,93 @@ export function MoodboardBoard({
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [editable, onDeletePhoto, photos, selectedPhotoId]);
+
+    useEffect(() => {
+        if (!editable) return;
+        const viewport = viewportRef.current;
+
+        function resetPan() {
+            spaceHeldRef.current = false;
+            setSpaceHeld(false);
+            const pan = panRef.current;
+            panRef.current = null;
+            setIsPanning(false);
+            if (pan && viewportRef.current?.hasPointerCapture(pan.pointerId)) {
+                viewportRef.current.releasePointerCapture(pan.pointerId);
+            }
+        }
+
+        function keyDown(event: KeyboardEvent) {
+            if (event.code !== "Space" || event.ctrlKey || event.metaKey || event.altKey) return;
+            const target = event.target;
+            if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select, [role='textbox']"))) return;
+            if (!pointerInsideRef.current && !viewportRef.current?.contains(document.activeElement)) return;
+            event.preventDefault();
+            spaceHeldRef.current = true;
+            setSpaceHeld(true);
+        }
+
+        function keyUp(event: KeyboardEvent) {
+            if (event.code !== "Space") return;
+            if (spaceHeldRef.current) event.preventDefault();
+            resetPan();
+        }
+
+        function visibilityChange() {
+            if (document.hidden) resetPan();
+        }
+
+        window.addEventListener("keydown", keyDown);
+        window.addEventListener("keyup", keyUp);
+        window.addEventListener("blur", resetPan);
+        document.addEventListener("visibilitychange", visibilityChange);
+        return () => {
+            window.removeEventListener("keydown", keyDown);
+            window.removeEventListener("keyup", keyUp);
+            window.removeEventListener("blur", resetPan);
+            document.removeEventListener("visibilitychange", visibilityChange);
+            const pan = panRef.current;
+            if (pan && viewport?.hasPointerCapture(pan.pointerId)) viewport.releasePointerCapture(pan.pointerId);
+            panRef.current = null;
+            spaceHeldRef.current = false;
+        };
+    }, [editable]);
+
+    function beginPan(event: PointerEvent<HTMLDivElement>) {
+        suppressPanClickRef.current = false;
+        if (!editable || !spaceHeldRef.current || event.button !== 0 || interaction) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const viewport = event.currentTarget;
+        panRef.current = {
+            pointerId: event.pointerId,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            scrollLeft: viewport.scrollLeft,
+            scrollTop: viewport.scrollTop,
+        };
+        suppressPanClickRef.current = true;
+        viewport.setPointerCapture(event.pointerId);
+        setIsPanning(true);
+    }
+
+    function movePan(event: PointerEvent<HTMLDivElement>) {
+        const pan = panRef.current;
+        if (!pan || pan.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.scrollLeft = pan.scrollLeft - (event.clientX - pan.clientX);
+        event.currentTarget.scrollTop = pan.scrollTop - (event.clientY - pan.clientY);
+    }
+
+    function finishPan(event: PointerEvent<HTMLDivElement>) {
+        const pan = panRef.current;
+        if (!pan || pan.pointerId !== event.pointerId) return;
+        event.stopPropagation();
+        panRef.current = null;
+        setIsPanning(false);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    }
 
     function positionFromPointer(clientX: number, clientY: number, offsetX = 0, offsetY = 0, width = MOODBOARD_CARD_WIDTH) {
         const rect = boardRef.current?.getBoundingClientRect();
@@ -421,7 +516,25 @@ export function MoodboardBoard({
     }
 
     return (
-        <div className="overflow-auto rounded-lg border border-slate-300 bg-slate-100 shadow-sm">
+        <div
+            ref={viewportRef}
+            tabIndex={editable ? 0 : undefined}
+            aria-label={editable ? "Moodboard workspace. Hold Space and drag to pan." : undefined}
+            className={`min-w-0 overflow-auto rounded-lg border border-slate-300 bg-slate-100 shadow-sm ${editable ? "h-[75dvh] min-h-80 overscroll-contain focus-visible:outline-2 focus-visible:outline-blue-500" : ""} ${spaceHeld ? "select-none touch-none" : ""} ${isPanning ? "cursor-grabbing [&_*]:!cursor-grabbing" : spaceHeld ? "cursor-grab [&_*]:!cursor-grab" : ""}`}
+            onPointerEnter={() => { pointerInsideRef.current = true; }}
+            onPointerLeave={() => { pointerInsideRef.current = false; }}
+            onPointerDownCapture={beginPan}
+            onPointerMoveCapture={movePan}
+            onPointerUpCapture={finishPan}
+            onPointerCancelCapture={finishPan}
+            onLostPointerCapture={finishPan}
+            onClickCapture={(event) => {
+                if (!suppressPanClickRef.current) return;
+                event.preventDefault();
+                event.stopPropagation();
+                suppressPanClickRef.current = false;
+            }}
+        >
             <div
                 ref={boardRef}
                 aria-label={editable ? "Moodboard canvas" : "Moodboard"}
