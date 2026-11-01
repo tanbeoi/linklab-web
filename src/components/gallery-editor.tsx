@@ -50,6 +50,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const { user } = useAuth();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const photoPreviewUrlRef = useRef<string | null>(null);
+    const uploadBusyRef = useRef(false);
     const [gallery, setGallery] = useState<Gallery | null>(null);
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({});
@@ -65,6 +66,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     const [isSaving, setIsSaving] = useState(false);
     const [isSavingCaptions, setIsSavingCaptions] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadStatus, setUploadStatus] = useState("");
     const [videoInsertionPoint, setVideoInsertionPoint] = useState<InsertionPoint | null>(null);
     const [isAddingVideo, setIsAddingVideo] = useState(false);
     const [photoUploadPreview, setPhotoUploadPreview] = useState<PhotoUploadPreview | null>(null);
@@ -147,6 +149,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     }, [galleryId]);
 
     function openFilePicker(point?: InsertionPoint) {
+        if (uploadBusyRef.current) return;
         setInsertionPoint(point ?? { insertAtStart: true });
         fileInputRef.current?.click();
     }
@@ -159,81 +162,91 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         }
     }
 
-    async function uploadPhoto(event: ChangeEvent<HTMLInputElement>) {
-        const file = event.target.files?.[0];
+    async function uploadPhotos(event: ChangeEvent<HTMLInputElement>) {
+        const files = Array.from(event.target.files ?? []);
         event.target.value = "";
-        if (!file || !gallery) return;
+        if (files.length === 0 || !gallery || uploadBusyRef.current) return;
 
-        if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
-            setError("Choose a JPEG, PNG, or WebP image.");
-            return;
-        }
-
-        if (file.size > MAX_IMAGE_SIZE_BYTES) {
-            setError("Choose an image smaller than 10 MB.");
-            return;
-        }
-
+        uploadBusyRef.current = true;
+        setIsUploading(true);
         setError("");
         setNotice("");
-        clearPhotoUploadPreview();
-        const imageUrl = URL.createObjectURL(file);
-        photoPreviewUrlRef.current = imageUrl;
-        const previewInsertionPoint = insertionPoint;
-        setPhotoUploadPreview({ imageUrl, progress: 0, insertionPoint: previewInsertionPoint });
-        setIsUploading(true);
+        const failures: string[] = [];
+        let uploadedCount = 0;
+        let nextInsertionPoint = insertionPoint;
 
         try {
-            const uploadRequest: CreatePhotoUploadUrlRequest = {
-                fileName: file.name,
-                contentType: file.type,
-            };
-            const uploadDetails = await apiRequest<CreatePhotoUploadUrlResponse>(`/api/galleries/${gallery.id}/photos/upload-url`, {
-                method: "POST",
-                body: JSON.stringify(uploadRequest),
-            });
+            // Save each file before advancing the anchor so portfolio batches
+            // retain the file picker's order, including when a file fails.
+            for (const [index, file] of files.entries()) {
+                setUploadStatus(`Uploading ${index + 1} of ${files.length}: ${file.name}`);
+                if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+                    failures.push(`${file.name}: choose a JPEG, PNG, or WebP image.`);
+                    continue;
+                }
+                if (file.size > MAX_IMAGE_SIZE_BYTES) {
+                    failures.push(`${file.name}: choose an image smaller than 10 MB.`);
+                    continue;
+                }
 
-            // This request goes straight from the browser to S3. It deliberately
-            // does not use apiRequest, which would attach the LinkLab API token.
-            await uploadToSignedUrl({
-                uploadUrl: uploadDetails.uploadUrl,
-                file,
-                onProgress: (progress) => setPhotoUploadPreview((current) => current ? { ...current, progress } : current),
-            });
+                const currentInsertionPoint = nextInsertionPoint;
+                try {
+                    const imageUrl = URL.createObjectURL(file);
+                    photoPreviewUrlRef.current = imageUrl;
+                    setPhotoUploadPreview({ imageUrl, progress: 0, insertionPoint: currentInsertionPoint });
+                    const uploadRequest: CreatePhotoUploadUrlRequest = {
+                        fileName: file.name,
+                        contentType: file.type,
+                    };
+                    const uploadDetails = await apiRequest<CreatePhotoUploadUrlResponse>(`/api/galleries/${gallery.id}/photos/upload-url`, {
+                        method: "POST",
+                        body: JSON.stringify(uploadRequest),
+                    });
 
-            const addPhotoRequest: AddPhotoToGalleryRequest = {
-                photoId: uploadDetails.photoId,
-                objectKey: uploadDetails.objectKey,
-            };
-
-            if ("insertAtStart" in insertionPoint) {
-                addPhotoRequest.insertAtStart = true;
-            } else {
-                addPhotoRequest.insertAfterPhotoId = insertionPoint.insertAfterPhotoId;
+                    // Upload directly to S3 without attaching the LinkLab token.
+                    await uploadToSignedUrl({
+                        uploadUrl: uploadDetails.uploadUrl,
+                        file,
+                        onProgress: (progress) => setPhotoUploadPreview((current) => current ? { ...current, progress } : current),
+                    });
+                    const addPhotoRequest: AddPhotoToGalleryRequest = {
+                        photoId: uploadDetails.photoId,
+                        objectKey: uploadDetails.objectKey,
+                        ...currentInsertionPoint,
+                    };
+                    const saved = await apiRequest<Photo>(`/api/galleries/${gallery.id}/photos`, {
+                        method: "POST",
+                        body: JSON.stringify(addPhotoRequest),
+                    });
+                    setPhotos((current) => {
+                        if (gallery.purpose === 1) return [...current, saved];
+                        const insertIndex = "insertAtStart" in currentInsertionPoint
+                            ? 0
+                            : current.findIndex((photo) => photo.id === currentInsertionPoint.insertAfterPhotoId) + 1;
+                        const copy = [...current];
+                        copy.splice(Math.max(insertIndex, 0), 0, saved);
+                        return copy;
+                    });
+                    setGallery((current) => current ? { ...current, photoCount: current.photoCount + 1 } : current);
+                    uploadedCount++;
+                    nextInsertionPoint = { insertAfterPhotoId: saved.id };
+                } catch (cause) {
+                    failures.push(`${file.name}: ${errorMessage(cause, "Could not upload the photo.")}`);
+                } finally {
+                    clearPhotoUploadPreview();
+                }
             }
-
-            const saved = await apiRequest<Photo>(`/api/galleries/${gallery.id}/photos`, {
-                method: "POST",
-                body: JSON.stringify(addPhotoRequest),
-            });
-
-            setPhotos((current) => {
-                if (gallery.purpose === 1) return [...current, saved];
-
-                const index = "insertAtStart" in insertionPoint
-                    ? 0
-                    : current.findIndex((photo) => photo.id === insertionPoint.insertAfterPhotoId) + 1;
-                const copy = [...current];
-                copy.splice(Math.max(index, 0), 0, saved);
-                return copy;
-            });
-            setGallery((current) => current ? { ...current, photoCount: current.photoCount + 1 } : current);
-            setNotice(gallery.purpose === 1 ? "Photo uploaded to Unsorted." : "Photo uploaded.");
-        } catch (cause) {
-            setError(errorMessage(cause, "Could not upload the photo."));
+            const summary = `${uploadedCount} ${uploadedCount === 1 ? "photo uploaded" : "photos uploaded"}${gallery.purpose === 1 ? " to Unsorted" : ""}.`;
+            if (failures.length > 0) {
+                setError(`${summary} ${failures.length} ${failures.length === 1 ? "file could" : "files could"} not be uploaded. ${failures.join(" ")}`);
+            } else {
+                setNotice(summary);
+            }
         } finally {
             clearPhotoUploadPreview();
+            setUploadStatus("");
             setIsUploading(false);
+            uploadBusyRef.current = false;
         }
     }
 
@@ -508,7 +521,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
 
     return (
         <main className="gallery-editor-page flex min-h-full flex-1 flex-col bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={uploadPhoto} />
+            <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={uploadPhotos} />
             {videoInsertionPoint && <YoutubeEmbedDialog onSave={addVideo} onClose={() => setVideoInsertionPoint(null)} isSaving={isAddingVideo} />}
             <header className="mx-auto mb-6 flex w-full max-w-none items-center justify-between gap-4">
                 <div>
@@ -519,6 +532,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
             </header>
 
             {(error || notice) && <p role={error ? "alert" : "status"} className={`mx-auto mb-5 w-full max-w-none rounded-lg border p-4 text-sm ${error ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-800"}`}>{error || notice}</p>}
+
+            {uploadStatus && <p role="status" className="mx-auto mb-4 w-full text-sm text-slate-600">{uploadStatus}</p>}
 
             <div className={`mx-auto grid w-full max-w-none gap-6 ${gallery.purpose === 1 ? "xl:grid-cols-[15rem_minmax(0,1fr)_22rem]" : "xl:grid-cols-[minmax(0,1fr)_22rem]"} xl:items-start`}>
                 {gallery.purpose === 1 && <UnsortedTray
@@ -543,7 +558,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     />
                 ) : (
                     <section aria-label="Portfolio media" className="overflow-hidden rounded-lg bg-white shadow-sm">
-                        <InsertPhotoButton label={photos.length === 0 ? "Add your first photo" : "Add photo at the top"} isUploading={isUploading || isAddingVideo} onEmbed={() => setVideoInsertionPoint({ insertAtStart: true })} onClick={() => openFilePicker({ insertAtStart: true })} />
+                        <InsertPhotoButton label={photos.length === 0 ? "Add your first photos" : "Add photos at the top"} isUploading={isUploading || isAddingVideo} onEmbed={() => setVideoInsertionPoint({ insertAtStart: true })} onClick={() => openFilePicker({ insertAtStart: true })} />
                         {photoUploadPreview?.insertionPoint && "insertAtStart" in photoUploadPreview.insertionPoint && <UploadProgressPreview imageUrl={photoUploadPreview.imageUrl} progress={photoUploadPreview.progress} alt="Uploading gallery photo" className="w-full" imageClassName="h-auto" />}
                         {photos.map((photo) => (<Fragment key={photo.id}>
                             <div key={photo.id}>
@@ -585,7 +600,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                                         />
                                     </figcaption>
                                 </figure>
-                                <InsertPhotoButton label="Upload photo here" isUploading={isUploading || isAddingVideo} onEmbed={() => setVideoInsertionPoint({ insertAfterPhotoId: photo.id })} onClick={() => openFilePicker({ insertAfterPhotoId: photo.id })} />
+                                <InsertPhotoButton label="Upload photos here" isUploading={isUploading || isAddingVideo} onEmbed={() => setVideoInsertionPoint({ insertAfterPhotoId: photo.id })} onClick={() => openFilePicker({ insertAfterPhotoId: photo.id })} />
                             </div>
                             {photoUploadPreview?.insertionPoint && "insertAfterPhotoId" in photoUploadPreview.insertionPoint && photoUploadPreview.insertionPoint.insertAfterPhotoId === photo.id && <UploadProgressPreview imageUrl={photoUploadPreview.imageUrl} progress={photoUploadPreview.progress} alt="Uploading gallery photo" className="w-full" imageClassName="h-auto" />}
                         </Fragment>))}
@@ -1145,7 +1160,7 @@ function UnsortedTray({
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{photos.length + (uploadPreview ? 1 : 0)}</span>
             </div>
             <button type="button" disabled={isUploading} onClick={onUpload} className="mt-4 w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400">
-                {isUploading ? "Uploading…" : "＋ Upload image"}
+                {isUploading ? "Uploading…" : "＋ Upload images"}
             </button>
             {photos.length === 0 && !uploadPreview ? (
                 <p className="py-8 text-center text-sm text-slate-500">Uploaded images will appear here until you place them on the board.</p>
