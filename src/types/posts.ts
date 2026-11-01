@@ -10,6 +10,7 @@ export type CollabPost = {
     ownerDisplayName: string;
     moodboardPreviewImageUrls: string[];
     moodboardPhotoCount: number;
+    moodboardIsPublished?: boolean | null;
     // Available for a post owner even when the linked moodboard is still private
     // or does not have photos yet.
     hasLinkedMoodboard?: boolean;
@@ -19,6 +20,7 @@ export type CollabPost = {
 };
 
 export type PortfolioGalleryPreview = {
+    isPublished?: boolean;
     id: string;
     title: string;
     ownerId: string;
