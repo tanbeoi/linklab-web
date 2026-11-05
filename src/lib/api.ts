@@ -1,4 +1,5 @@
 import type { ApiError } from "@/types/auth";
+import { trackBackendRequest } from "@/lib/backend-activity";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export const UNAUTHORIZED_EVENT = "linklab:unauthorized";
@@ -13,7 +14,16 @@ export class ApiRequestError extends Error {
     }
 }
 
-export async function apiRequest<T>(
+export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const finish = trackBackendRequest();
+    try {
+        return await performApiRequest<T>(path, options);
+    } finally {
+        finish();
+    }
+}
+
+async function performApiRequest<T>(
     // path if API string, options is an optional parameter of type RequestInit
     path: string,
     options: RequestInit = {},
