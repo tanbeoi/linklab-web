@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
+import { BackendWakeUp } from "@/components/backend-wake-up";
 import { AuthProvider } from "@/contexts/auth-context";
 
 const geistSans = localFont({
@@ -55,6 +56,7 @@ export default function RootLayout({ children, gallery }: {
     <body className="flex h-dvh flex-col overflow-hidden">
         <AuthProvider>
             <Navbar />
+            <BackendWakeUp />
 
             <div className="app-scroll-area flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50">
                 {children}
