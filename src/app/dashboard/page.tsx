@@ -21,15 +21,15 @@ export default function DashboardPage() {
                 <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
                     <p className="text-sm font-semibold text-amber-700">Welcome to LinkLab</p>
                     <h1 className="mt-2 max-w-3xl text-3xl font-bold tracking-tight sm:text-5xl">Start a creative project, from first idea to finished work.</h1>
-                    <section aria-label="Creative work in progress" className="mt-7 grid h-[30rem] grid-cols-3 gap-px overflow-hidden rounded-2xl bg-slate-950 p-px shadow-sm sm:h-[34rem]">
+                    <section aria-label="Creative work in progress" className="mt-7 grid h-96 grid-cols-1 gap-px overflow-hidden rounded-2xl bg-slate-950 p-px shadow-sm sm:h-[30rem] sm:grid-cols-2 lg:h-[34rem] lg:grid-cols-3">
                         <figure className="relative min-w-0 overflow-hidden bg-slate-200">
-                            <Image fill preload sizes="(max-width: 640px) 31vw, (max-width: 1024px) 30vw, 315px" src="/hero/homepage 3.jpg" alt="A photographer and crew creating a fashion image on location" className="object-cover object-[46%_center]" />
+                            <Image fill preload sizes="(max-width: 639px) calc(100vw - 5rem), (max-width: 1023px) calc((100vw - 8rem) / 2), 315px" src="/hero/homepage 3.jpg" alt="A photographer and crew creating a fashion image on location" className="object-cover object-[46%_center]" />
                         </figure>
-                        <figure className="relative min-w-0 overflow-hidden bg-slate-200">
-                            <Image fill sizes="(max-width: 640px) 31vw, (max-width: 1024px) 30vw, 315px" src={homepageSix} alt="A model posed in a studio set with lighting equipment" className="object-cover object-center" />
+                        <figure className="relative hidden min-w-0 overflow-hidden bg-slate-200 sm:block">
+                            <Image fill sizes="(max-width: 639px) calc(100vw - 5rem), (max-width: 1023px) calc((100vw - 8rem) / 2), 315px" src={homepageSix} alt="A model posed in a studio set with lighting equipment" className="object-cover object-center" />
                         </figure>
-                        <figure className="relative min-w-0 overflow-hidden bg-slate-200">
-                            <Image fill sizes="(max-width: 640px) 31vw, (max-width: 1024px) 30vw, 315px" src={homepageOne} alt="A behind-the-scenes black and white fashion shoot" className="object-cover object-center" />
+                        <figure className="relative hidden min-w-0 overflow-hidden bg-slate-200 lg:block">
+                            <Image fill sizes="(max-width: 639px) calc(100vw - 5rem), (max-width: 1023px) calc((100vw - 8rem) / 2), 315px" src={homepageOne} alt="A behind-the-scenes black and white fashion shoot" className="object-cover object-center" />
                         </figure>
                     </section>
                     <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">Use a collaboration post to find people, a moodboard to share the direction, and a portfolio to show what the project became.</p>
