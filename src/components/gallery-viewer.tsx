@@ -8,6 +8,7 @@ import { MoodboardComposition } from "@/components/moodboard-board";
 import { CollaborationOrigin } from "@/components/collaboration-origin";
 import { UserProfileLink } from "@/components/user-profile-link";
 import { YoutubeVideo } from "@/components/youtube-video";
+import { BackendWakeUpNotice } from "@/components/backend-wake-up";
 import type { Gallery, Photo } from "@/types/galleries";
 
 export type GalleryViewerSource =
@@ -178,6 +179,7 @@ export function GalleryViewer({ source, onClose }: {
             <button type="button" autoFocus onClick={onClose} aria-label="Close gallery"
                 className="fixed right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/80 text-3xl text-white hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-white sm:right-5 sm:top-5">×</button>
             <article className="mx-auto w-full max-w-5xl">
+                <BackendWakeUpNotice inline />
                 <header className="mb-6 pr-12">
                     <p className="text-xs font-medium uppercase tracking-widest text-slate-300">{gallery?.purpose === 1 ? "Moodboard" : "Gallery"}</p>
                     <h2 id="gallery-viewer-title" className="mt-2 break-words text-2xl font-semibold sm:text-3xl">{gallery?.title || "Loading gallery…"}</h2>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { YoutubeVideo } from "@/components/youtube-video";
+import { BackendWakeUpNotice } from "@/components/backend-wake-up";
 import { ChangeEvent, Fragment, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -1025,6 +1026,7 @@ function ThumbnailSettings({
                     <button ref={thumbnailCloseButtonRef} type="button" onClick={closeEditor} className="rounded-full p-1 text-xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-900" aria-label="Close thumbnail editor">×</button>
                 </div>
 
+                <BackendWakeUpNotice inline />
                 <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
                     <div>
                         <div
@@ -1115,6 +1117,7 @@ function YoutubeEmbedDialog({ onSave, onClose, isSaving }: {
         return () => { dialog?.close(); previous?.focus(); };
     }, []);
     return <dialog ref={dialogRef} aria-labelledby="youtube-embed-title" onCancel={(event) => { event.preventDefault(); if (!isSaving) onClose(); }} className="fixed inset-0 m-auto w-[calc(100%_-_2rem)] max-w-lg rounded-xl bg-white p-6 text-slate-900 shadow-xl backdrop:bg-black/60">
+        <BackendWakeUpNotice inline />
         <form onSubmit={async (event) => {
             event.preventDefault();
             setError("");
