@@ -22,6 +22,14 @@ export type MoodboardLayout = BoardPosition & {
     width: number;
     captionHeight: number;
 };
+type MarqueeSelection = {
+    pointerId: number;
+    start: BoardPosition;
+    current: BoardPosition;
+    initialIds: string[];
+    previousIds: string[];
+};
+
 type ResizeHandle = "north-west" | "north-east" | "south-west" | "south-east";
 type BoardInteraction =
     | {
@@ -30,6 +38,8 @@ type BoardInteraction =
         offsetX: number;
         offsetY: number;
         layout: MoodboardLayout;
+        originalLayouts: Record<string, MoodboardLayout>;
+        layouts: Record<string, MoodboardLayout>;
     }
     | {
         kind: "image-resize";
@@ -54,6 +64,8 @@ type MoodboardBoardProps = {
     editable?: boolean;
     captionDrafts?: Record<string, string>;
     onLayoutChange?: (photoId: string, layout: MoodboardLayout) => void;
+    onLayoutsChange?: (updates: { photoId: string; layout: MoodboardLayout }[]) => void;
+    interactionDisabled?: boolean;
     onUnsortedDrop?: (photoId: string, layout: MoodboardLayout) => void;
     onCaptionChange?: (photo: Photo, caption: string) => void;
     onDeletePhoto?: (photo: Photo) => void;
@@ -236,6 +248,8 @@ export function MoodboardBoard({
     editable = false,
     captionDrafts = {},
     onLayoutChange,
+    onLayoutsChange,
+    interactionDisabled = false,
     onUnsortedDrop,
     onCaptionChange,
     onDeletePhoto,
@@ -253,14 +267,22 @@ export function MoodboardBoard({
 
     const [interaction, setInteraction] = useState<BoardInteraction | null>(null);
     const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
-    const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
+    const [selectionIds, setSelectedPhotoIds] = useState<string[]>([]);
+    const selectedPhotoIds = selectionIds.filter((id) => photos.some((photo) => photo.id === id && isPlaced(photo)));
+    const selectedPhotoId = selectedPhotoIds.length === 1 ? selectedPhotoIds[0] : null;
+    const [marquee, setMarquee] = useState<MarqueeSelection | null>(null);
+    const marqueeRef = useRef<MarqueeSelection | null>(null);
+    const cardRefs = useRef(new Map<string, HTMLDivElement>());
+
+    function selectPhoto(photoId: string) { setSelectedPhotoIds([photoId]); }
+
 
     const placedPhotos = photos
         .filter(isPlaced)
         .sort((a, b) => (a.boardZIndex ?? 0) - (b.boardZIndex ?? 0));
 
     useEffect(() => {
-        if (!editable || !selectedPhotoId || !onDeletePhoto) return;
+        if (!editable || interactionDisabled || !selectedPhotoId || !onDeletePhoto) return;
 
         function handleKeyDown(event: KeyboardEvent) {
             if (event.key !== "Delete" && event.key !== "Backspace") return;
@@ -282,7 +304,7 @@ export function MoodboardBoard({
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [editable, onDeletePhoto, photos, selectedPhotoId]);
+    }, [editable, interactionDisabled, onDeletePhoto, photos, selectedPhotoId]);
 
     useEffect(() => {
         if (!editable) return;
@@ -361,7 +383,7 @@ export function MoodboardBoard({
         function wheel(event: WheelEvent) {
             if (!event.metaKey && !event.ctrlKey) return;
             event.preventDefault();
-            if (panRef.current || interaction) return;
+            if (panRef.current || interaction || marqueeRef.current) return;
             const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport!.clientHeight : 1;
             const delta = clamp(event.deltaY * unit, -200, 200);
             changeZoom(zoomRef.current * Math.exp(-delta * 0.002), event.clientX, event.clientY);
@@ -382,7 +404,7 @@ export function MoodboardBoard({
 
     function beginPan(event: PointerEvent<HTMLDivElement>) {
         suppressPanClickRef.current = false;
-        if (!editable || !spaceHeldRef.current || event.button !== 0 || interaction) return;
+        if (!editable || !spaceHeldRef.current || event.button !== 0 || interaction || marqueeRef.current) return;
         event.preventDefault();
         event.stopPropagation();
         const viewport = event.currentTarget;
@@ -427,15 +449,24 @@ export function MoodboardBoard({
     }
 
     function beginPhotoDrag(event: PointerEvent<HTMLButtonElement>, photo: Photo) {
-        if (!editable || event.button !== 0 || !isPlaced(photo)) return;
+        if (!editable || interactionDisabled || event.button !== 0 || !isPlaced(photo)) return;
 
         event.preventDefault();
-        setSelectedPhotoId(photo.id);
+        if (event.shiftKey) {
+            setSelectedPhotoIds((current) => current.includes(photo.id)
+                ? current.filter((id) => id !== photo.id) : [...current, photo.id]);
+            return;
+        }
+        const ids = selectedPhotoIds.includes(photo.id) ? selectedPhotoIds : [photo.id];
+        setSelectedPhotoIds(ids);
+        const originalLayouts = Object.fromEntries(placedPhotos.filter((item) => ids.includes(item.id)).map((item) => [item.id, getLayout(item)]));
         const photoRect = event.currentTarget.getBoundingClientRect();
         event.currentTarget.setPointerCapture(event.pointerId);
         const layout = getLayout(photo);
         setInteraction({
             kind: "move",
+            originalLayouts,
+            layouts: originalLayouts,
             photoId: photo.id,
             offsetX: (event.clientX - photoRect.left) / zoomRef.current,
             offsetY: (event.clientY - photoRect.top) / zoomRef.current,
@@ -444,11 +475,11 @@ export function MoodboardBoard({
     }
 
     function beginImageResize(event: PointerEvent<HTMLButtonElement>, photo: Photo, handle: ResizeHandle) {
-        if (!editable || event.button !== 0 || !isPlaced(photo)) return;
+        if (!editable || interactionDisabled || event.button !== 0 || !isPlaced(photo)) return;
 
         event.preventDefault();
         event.stopPropagation();
-        setSelectedPhotoId(photo.id);
+        selectPhoto(photo.id);
         event.currentTarget.setPointerCapture(event.pointerId);
         const layout = getLayout(photo);
         setInteraction({
@@ -464,11 +495,11 @@ export function MoodboardBoard({
     }
 
     function beginCaptionResize(event: PointerEvent<HTMLButtonElement>, photo: Photo) {
-        if (!editable || event.button !== 0 || !isPlaced(photo)) return;
+        if (!editable || interactionDisabled || event.button !== 0 || !isPlaced(photo)) return;
 
         event.preventDefault();
         event.stopPropagation();
-        setSelectedPhotoId(photo.id);
+        selectPhoto(photo.id);
         event.currentTarget.setPointerCapture(event.pointerId);
         const layout = getLayout(photo);
         setInteraction({
@@ -484,17 +515,25 @@ export function MoodboardBoard({
         if (!interaction) return;
 
         if (interaction.kind === "move") {
-            const position = positionFromPointer(
-                event.clientX,
-                event.clientY,
-                interaction.offsetX,
-                interaction.offsetY,
-                interaction.layout.width,
-            );
-            if (!position) return;
+            const rect = boardRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            const original = interaction.originalLayouts[interaction.photoId];
+            const originals = Object.values(interaction.originalLayouts);
+            const deltaX = Math.round(clamp(
+                (event.clientX - rect.left) / zoomRef.current - interaction.offsetX - original.x,
+                -Math.min(...originals.map((layout) => layout.x)),
+                Math.min(...originals.map((layout) => MOODBOARD_CANVAS_WIDTH - layout.x - layout.width)),
+            ));
+            const deltaY = Math.round(clamp(
+                (event.clientY - rect.top) / zoomRef.current - interaction.offsetY - original.y,
+                -Math.min(...originals.map((layout) => layout.y)),
+                Math.min(...originals.map((layout) => MOODBOARD_CANVAS_HEIGHT - 40 - layout.y)),
+            ));
+            const layouts = Object.fromEntries(Object.entries(interaction.originalLayouts).map(([id, layout]) => [
+                id, { ...layout, x: layout.x + deltaX, y: layout.y + deltaY },
+            ]));
             setInteraction((current) => current?.kind === "move" ? {
-                ...current,
-                layout: { ...current.layout, ...position },
+                ...current, layouts, layout: layouts[current.photoId],
             } : current);
             return;
         }
@@ -539,12 +578,121 @@ export function MoodboardBoard({
 
     function finishInteraction() {
         if (!interaction) return;
-        onLayoutChange?.(interaction.photoId, interaction.layout);
+        const updates = interaction.kind === "move"
+            ? Object.entries(interaction.layouts).filter(([id, layout]) => {
+                const original = interaction.originalLayouts[id];
+                return layout.x !== original.x || layout.y !== original.y;
+            }).map(([photoId, layout]) => ({ photoId, layout }))
+            : (interaction.layout.x !== interaction.originalLayout.x || interaction.layout.y !== interaction.originalLayout.y ||
+                interaction.layout.width !== interaction.originalLayout.width || interaction.layout.captionHeight !== interaction.originalLayout.captionHeight)
+                ? [{ photoId: interaction.photoId, layout: interaction.layout }] : [];
+        if (updates.length > 0) {
+            if (onLayoutsChange) onLayoutsChange(updates);
+            else updates.forEach(({ photoId, layout }) => onLayoutChange?.(photoId, layout));
+        }
         setInteraction(null);
     }
 
-    function dropUnsortedPhoto(event: DragEvent<HTMLDivElement>) {
+    function canvasPoint(clientX: number, clientY: number): BoardPosition | null {
+        const rect = boardRef.current?.getBoundingClientRect();
+        return rect ? {
+            x: clamp((clientX - rect.left) / zoomRef.current, 0, MOODBOARD_CANVAS_WIDTH),
+            y: clamp((clientY - rect.top) / zoomRef.current, 0, MOODBOARD_CANVAS_HEIGHT),
+        } : null;
+    }
+
+    function beginMarquee(event: PointerEvent<HTMLDivElement>) {
+        if (!editable || interactionDisabled || event.button !== 0 || event.pointerType === "touch" || spaceHeldRef.current || interaction || event.target !== event.currentTarget) return;
+        const point = canvasPoint(event.clientX, event.clientY);
+        if (!point) return;
+        event.preventDefault();
+        event.currentTarget.focus({ preventScroll: true });
+        event.currentTarget.setPointerCapture(event.pointerId);
+        const initialIds = event.shiftKey ? selectedPhotoIds : [];
+        const selection = { pointerId: event.pointerId, start: point, current: point, initialIds, previousIds: selectedPhotoIds };
+        marqueeRef.current = selection;
+        setMarquee(selection);
+        setSelectedPhotoIds(initialIds);
+    }
+
+    function moveMarquee(event: PointerEvent<HTMLDivElement>) {
+        const selection = marqueeRef.current;
+        if (!selection || selection.pointerId !== event.pointerId) return;
+        const current = canvasPoint(event.clientX, event.clientY);
+        const boardRect = boardRef.current?.getBoundingClientRect();
+        if (!current || !boardRect) return;
+        event.preventDefault();
+        const next = { ...selection, current };
+        marqueeRef.current = next;
+        setMarquee(next);
+        if (Math.hypot(current.x - next.start.x, current.y - next.start.y) * zoomRef.current < 3) return;
+        const left = Math.min(next.start.x, current.x), right = Math.max(next.start.x, current.x);
+        const top = Math.min(next.start.y, current.y), bottom = Math.max(next.start.y, current.y);
+        const hits = placedPhotos.filter((photo) => {
+            const rect = cardRefs.current.get(photo.id)?.getBoundingClientRect();
+            if (!rect) return false;
+            const x = (rect.left - boardRect.left) / zoomRef.current;
+            const y = (rect.top - boardRect.top) / zoomRef.current;
+            return x < right && x + rect.width / zoomRef.current > left && y < bottom && y + rect.height / zoomRef.current > top;
+        }).map((photo) => photo.id);
+        setSelectedPhotoIds([...new Set([...selection.initialIds, ...hits])]);
+    }
+
+    function finishMarquee(event: PointerEvent<HTMLDivElement>, cancel = false) {
+        const selection = marqueeRef.current;
+        if (!selection || selection.pointerId !== event.pointerId) return;
+        if (cancel) setSelectedPhotoIds(selection.previousIds);
+        marqueeRef.current = null;
+        setMarquee(null);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    useEffect(() => {
         if (!editable) return;
+        function escape(event: KeyboardEvent) {
+            const target = event.target;
+            if (event.key !== "Escape" || (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select")))) return;
+            setSelectedPhotoIds([]);
+            const selection = marqueeRef.current;
+            marqueeRef.current = null;
+            setMarquee(null);
+            if (selection && boardRef.current?.hasPointerCapture(selection.pointerId)) boardRef.current.releasePointerCapture(selection.pointerId);
+        }
+        function cancelSelection() {
+            const selection = marqueeRef.current;
+            if (!selection) return;
+            setSelectedPhotoIds(selection.previousIds);
+            marqueeRef.current = null;
+            setMarquee(null);
+            if (boardRef.current?.hasPointerCapture(selection.pointerId)) boardRef.current.releasePointerCapture(selection.pointerId);
+        }
+        window.addEventListener("keydown", escape);
+        window.addEventListener("blur", cancelSelection);
+        return () => {
+            window.removeEventListener("keydown", escape);
+            window.removeEventListener("blur", cancelSelection);
+        };
+    }, [editable]);
+
+    useEffect(() => {
+        function cancelGestureForUndo(event: KeyboardEvent) {
+            if ((!event.metaKey && !event.ctrlKey) || !["z", "y"].includes(event.key.toLowerCase())) return;
+            const target = event.target;
+            if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select"))) return;
+            if (!interaction && !marqueeRef.current && !panRef.current) return;
+            event.preventDefault();
+            setInteraction(null);
+            const selection = marqueeRef.current;
+            marqueeRef.current = null;
+            setMarquee(null);
+            if (selection && boardRef.current?.hasPointerCapture(selection.pointerId)) boardRef.current.releasePointerCapture(selection.pointerId);
+        }
+        window.addEventListener("keydown", cancelGestureForUndo, true);
+        return () => window.removeEventListener("keydown", cancelGestureForUndo, true);
+    }, [interaction]);
+
+    function dropUnsortedPhoto(event: DragEvent<HTMLDivElement>) {
+        if (!editable || interactionDisabled) return;
         event.preventDefault();
         const photoId = event.dataTransfer.getData("application/x-linklab-photo");
         const photo = photos.find((candidate) => candidate.id === photoId);
@@ -555,7 +703,7 @@ export function MoodboardBoard({
     function deleteSelectedPhoto(event: MouseEvent<HTMLButtonElement>, photo: Photo) {
         event.preventDefault();
         event.stopPropagation();
-        onDeletePhoto?.(photo);
+        if (!interactionDisabled) onDeletePhoto?.(photo);
     }
 
     function saveAspectRatio(photo: Photo, image: HTMLImageElement) {
@@ -569,7 +717,9 @@ export function MoodboardBoard({
     return (
         <div className="min-w-0">
             {editable && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-                <p>⌘ / Ctrl + scroll to zoom · Space + drag to pan</p>
+                <div><p>Drag empty space to select · Shift to add · Space + drag to pan · ⌘ / Ctrl + scroll to zoom</p>
+                    <p role="status" className="mt-1 min-h-4 font-medium text-blue-700">{selectedPhotoIds.length > 0 ? `${selectedPhotoIds.length} selected · drag to move · Escape to clear` : "\u00a0"}</p>
+                </div>
                 <div className="flex items-center rounded-md border border-slate-300 bg-white text-slate-700">
                     <button type="button" aria-label="Zoom out" disabled={zoom <= MIN_BOARD_ZOOM} onClick={() => zoomFromCenter(zoom / 1.2)} className="px-3 py-2 hover:bg-slate-50 disabled:opacity-40">−</button>
                     <button type="button" aria-label="Reset zoom to 100%" title="Reset zoom to 100%" onClick={() => zoomFromCenter(1)} className="min-w-14 px-2 py-2 tabular-nums hover:bg-slate-50">{Math.round(zoom * 100)}%</button>
@@ -599,37 +749,42 @@ export function MoodboardBoard({
             <div
                 ref={boardRef}
                 aria-label={editable ? "Moodboard canvas" : "Moodboard"}
-                className="absolute left-0 top-0 h-[1600px] w-[2400px] origin-top-left bg-white"
+                tabIndex={editable ? -1 : undefined}
+                className={`absolute left-0 top-0 h-[1600px] w-[2400px] origin-top-left bg-white outline-none ${marquee ? "select-none cursor-crosshair" : ""}`}
                 style={{
                     transform: `scale(${zoom})`,
                     backgroundImage: "radial-gradient(#cbd5e1 1px, transparent 1px)",
                     backgroundSize: "18px 18px",
                 }}
-                onPointerMove={moveInteraction}
-                onPointerUp={finishInteraction}
-                onPointerCancel={finishInteraction}
-                onPointerDown={(event) => {
-                    if (event.target === event.currentTarget) setSelectedPhotoId(null);
-                }}
+                onPointerMove={(event) => { if (marqueeRef.current) moveMarquee(event); else moveInteraction(event); }}
+                onPointerUp={(event) => { if (marqueeRef.current) finishMarquee(event); else finishInteraction(); }}
+                onPointerCancel={(event) => { if (marqueeRef.current) finishMarquee(event, true); else setInteraction(null); }}
+                onLostPointerCapture={(event) => finishMarquee(event, true)}
+                onPointerDown={beginMarquee}
                 onDragOver={(event) => { if (editable) event.preventDefault(); }}
                 onDrop={dropUnsortedPhoto}
             >
                 {placedPhotos.length === 0 && (
-                    <p className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-white/90 px-4 py-3 text-sm text-slate-500 shadow-sm">
+                    <p className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-white/90 px-4 py-3 text-sm text-slate-500 shadow-sm">
                         {editable ? "Drag an image here from Unsorted." : "This moodboard has no placed images yet."}
                     </p>
                 )}
+                {marquee && <div aria-hidden="true" className="pointer-events-none absolute z-[20000] border border-blue-500 bg-blue-400/15" style={{
+                    left: Math.min(marquee.start.x, marquee.current.x), top: Math.min(marquee.start.y, marquee.current.y),
+                    width: Math.abs(marquee.current.x - marquee.start.x), height: Math.abs(marquee.current.y - marquee.start.y),
+                }} />}
                 {placedPhotos.map((photo) => {
-                    const layout = interaction?.photoId === photo.id
-                        ? interaction.layout
-                        : getLayout(photo);
-                    const isActive = interaction?.photoId === photo.id;
-                    const isSelected = selectedPhotoId === photo.id;
+                    const layout = interaction?.kind === "move" ? interaction.layouts[photo.id] ?? getLayout(photo)
+                        : interaction?.photoId === photo.id ? interaction.layout : getLayout(photo);
+                    const isActive = interaction?.kind === "move" ? Boolean(interaction.layouts[photo.id]) : interaction?.photoId === photo.id;
+                    const isSelected = selectedPhotoIds.includes(photo.id);
                     const caption = captionDrafts[photo.id] ?? photo.caption ?? "";
 
                     return (
                         <div
                             key={photo.id}
+                            ref={(node) => { if (node) cardRefs.current.set(photo.id, node); else cardRefs.current.delete(photo.id); }}
+                            data-selected={isSelected || undefined}
                             className={`group absolute rounded-sm bg-white shadow-lg ring-1 ring-black/10 ${isSelected ? "ring-2 ring-blue-500" : ""}`}
                             style={{
                                 left: layout.x,
@@ -655,7 +810,7 @@ export function MoodboardBoard({
                                             className="block h-auto w-full"
                                         />
                                     </button>
-                                    {editable && isSelected && (
+                                    {editable && isSelected && selectedPhotoIds.length === 1 && (
                                         <button
                                             type="button"
                                             aria-label={`Delete ${caption || "moodboard image"}`}
@@ -682,7 +837,7 @@ export function MoodboardBoard({
                                     ))}
                                 </div>
                                 {editable ? (
-                                    <div className="relative border-t border-slate-100" onPointerDown={() => setSelectedPhotoId(photo.id)}>
+                                    <div className="relative border-t border-slate-100" onPointerDown={() => selectPhoto(photo.id)}>
                                         <button
                                             type="button"
                                             aria-label="Resize caption area"
