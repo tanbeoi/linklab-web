@@ -13,6 +13,7 @@ import {
     MoodboardBoard,
     type MoodboardLayout,
 } from "@/components/moodboard-board";
+import { useUndoHistory } from "@/lib/use-undo-history";
 import { apiRequest } from "@/lib/api";
 import { uploadToSignedUrl } from "@/lib/direct-upload";
 import { UploadProgressPreview, UploadProgressRing } from "@/components/upload-progress-preview";
@@ -27,7 +28,6 @@ import {
     type CreatePhotoUploadUrlResponse,
     type GalleryThumbnailResponse,
     type UpdatePhotoCaptionsRequest,
-    type UpdatePhotoBoardPositionRequest,
     type UpdateGalleryCollabPostRequest,
     type UpdateGalleryThumbnailFrameRequest,
     type UpdateGalleryThumbnailSourceRequest,
@@ -37,6 +37,17 @@ import type { CollabPost, MyApplication, PagedResponse } from "@/types/posts";
 
 type InsertionPoint = { insertAtStart: true } | { insertAfterPhotoId: string };
 type PhotoUploadPreview = { imageUrl: string; progress: number; insertionPoint: InsertionPoint };
+
+type PhotoBoardState = Pick<Photo, "boardX" | "boardY" | "boardWidth" | "captionHeight" | "boardZIndex"> & { photoId: string };
+type GalleryHistoryAction =
+    | { kind: "layout"; label: string; before: PhotoBoardState[]; after: PhotoBoardState[] }
+    | { kind: "delete"; label: string; photo: Photo; captionDraft?: string }
+    | { kind: "add"; label: string; photos: Photo[]; captionDrafts?: Record<string, string> };
+
+function boardState(photo: Photo): PhotoBoardState {
+    return { photoId: photo.id, boardX: photo.boardX, boardY: photo.boardY, boardWidth: photo.boardWidth,
+        captionHeight: photo.captionHeight, boardZIndex: photo.boardZIndex };
+}
 
 type CollaborationOption = { id: string; title: string };
 
@@ -85,12 +96,107 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         message: string;
     } | null>(null);
 
+    const history = useUndoHistory<GalleryHistoryAction>({
+        apply: applyHistoryAction,
+        onError: (cause) => setError(errorMessage(cause, "Could not save this action. Please try again.")),
+        blocked: isLoading || isUploading || isAddingVideo || isSaving || isSavingCaptions || isDeletingGallery,
+    });
+    const { clear: clearHistory } = history;
+
+    async function refreshGalleryMedia() {
+        if (!gallery) return [];
+        const [savedPhotos, savedGallery] = await Promise.all([
+            apiRequest<Photo[]>(`/api/galleries/${gallery.id}/photos`),
+            apiRequest<Gallery>(`/api/galleries/${gallery.id}`),
+        ]);
+        setPhotos(savedPhotos);
+        setGallery((current) => current ? { ...current, photoCount: savedGallery.photoCount,
+            thumbnailPhotoId: savedGallery.thumbnailPhotoId, previewImageUrl: savedGallery.previewImageUrl,
+            hasCustomThumbnail: savedGallery.hasCustomThumbnail, thumbnailFocalPointX: savedGallery.thumbnailFocalPointX,
+            thumbnailFocalPointY: savedGallery.thumbnailFocalPointY, thumbnailZoom: savedGallery.thumbnailZoom,
+        } : current);
+        return savedPhotos;
+    }
+
+    async function applyHistoryAction(action: GalleryHistoryAction, direction: "undo" | "redo") {
+        if (!gallery) throw new Error("Gallery not loaded.");
+        setError("");
+        if (action.kind !== "layout") setNotice("");
+        if (action.kind === "add") {
+            if (direction === "undo") {
+                action.captionDrafts = { ...action.captionDrafts, ...Object.fromEntries(action.photos
+                    .filter((photo) => photo.id in captionDrafts).map((photo) => [photo.id, captionDrafts[photo.id]])) };
+            }
+            try {
+                for (const photo of action.photos) {
+                    if (direction === "undo") {
+                        await apiRequest<void>(`/api/galleries/${gallery.id}/photos/${photo.id}`, { method: "DELETE" });
+                    } else {
+                        await apiRequest(`/api/galleries/${gallery.id}/photos/${photo.id}/restore`, { method: "POST" });
+                    }
+                }
+                const active = await refreshGalleryMedia();
+                const activeIds = new Set(active.map((photo) => photo.id));
+                setCaptionDrafts((current) => Object.fromEntries(Object.entries({ ...current,
+                    ...(direction === "redo" ? action.captionDrafts : {}),
+                }).filter(([id]) => activeIds.has(id))));
+            } catch (cause) {
+                // The endpoints are idempotent: keep the history entry on an
+                // incomplete batch so retrying safely finishes the same action.
+                await refreshGalleryMedia().catch(() => {});
+                throw cause;
+            }
+        } else if (action.kind === "layout") {
+            const updates = direction === "undo" ? action.before : action.after;
+            const previous = new Map(photos.map((photo) => [photo.id, photo]));
+            const byId = new Map(updates.map((update) => [update.photoId, update]));
+            setPhotos((current) => current.map((photo) => byId.has(photo.id) ? { ...photo, ...byId.get(photo.id) } : photo));
+            try {
+                const saved = await apiRequest<Photo[]>(`/api/galleries/${gallery.id}/photos/board-layouts`, {
+                    method: "PATCH", body: JSON.stringify({ photos: updates }),
+                });
+                const savedById = new Map(saved.map((photo) => [photo.id, photo]));
+                setPhotos((current) => current.map((photo) => savedById.get(photo.id) ?? photo));
+            } catch (cause) {
+                setPhotos((current) => current.map((photo) => byId.has(photo.id) ? previous.get(photo.id) ?? photo : photo));
+                throw cause;
+            }
+        } else if (direction === "undo") {
+            const restored = await apiRequest<{ photo: Photo; index: number; thumbnail: GalleryThumbnailResponse }>(
+                `/api/galleries/${gallery.id}/photos/${action.photo.id}/restore`, { method: "POST" },
+            );
+            setPhotos((current) => {
+                if (current.some((photo) => photo.id === restored.photo.id)) return current;
+                const next = [...current];
+                next.splice(Math.min(restored.index, next.length), 0, restored.photo);
+                return next;
+            });
+            if (action.captionDraft !== undefined) setCaptionDrafts((current) => ({ ...current, [action.photo.id]: action.captionDraft! }));
+            setGallery((current) => current ? { ...current, ...restored.thumbnail, photoCount: current.photoCount + 1 } : current);
+        } else {
+            setDeletingPhotoId(action.photo.id);
+            try {
+                await apiRequest<void>(`/api/galleries/${gallery.id}/photos/${action.photo.id}`, { method: "DELETE" });
+                setPhotos((current) => current.filter((photo) => photo.id !== action.photo.id));
+                setCaptionDrafts((current) => {
+                    const next = { ...current }; delete next[action.photo.id]; return next;
+                });
+                setGallery((current) => current ? { ...current, photoCount: Math.max(0, current.photoCount - 1),
+                    ...(current.thumbnailPhotoId === action.photo.id ? { thumbnailPhotoId: null, thumbnailFocalPointX: 50, thumbnailFocalPointY: 50, thumbnailZoom: 1 } : {}),
+                } : current);
+            } finally {
+                setDeletingPhotoId(null);
+            }
+        }
+        setNotice(`${direction === "undo" ? "Undone" : "Saved"}: ${action.label}.`);
+    }
+
     function finishEditing() {
         window.history.back();
     }
 
     async function deleteGallery() {
-        if (!gallery) return;
+        if (!gallery || history.isBusy) return;
 
         const galleryKind = gallery.purpose === 1 ? "moodboard" : "portfolio";
         const confirmed = window.confirm(
@@ -132,6 +238,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 ownPosts.items.forEach((post) => options.set(post.id, post.title));
                 acceptedApplications.items.forEach((application) => options.set(application.postId, application.postTitle));
 
+                clearHistory();
                 setGallery(galleryData);
                 setSelectedCollabPostId(galleryData.collabPostId ?? "");
                 setCollaborationFeedback(null);
@@ -147,10 +254,10 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
 
         void loadEditor();
         return () => { cancelled = true; };
-    }, [galleryId]);
+    }, [galleryId, clearHistory]);
 
     function openFilePicker(point?: InsertionPoint) {
-        if (uploadBusyRef.current) return;
+        if (uploadBusyRef.current || history.isBusy) return;
         setInsertionPoint(point ?? { insertAtStart: true });
         fileInputRef.current?.click();
     }
@@ -174,6 +281,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         setNotice("");
         const failures: string[] = [];
         let uploadedCount = 0;
+        const uploadedPhotos: Photo[] = [];
         let nextInsertionPoint = insertionPoint;
 
         try {
@@ -229,6 +337,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                         return copy;
                     });
                     setGallery((current) => current ? { ...current, photoCount: current.photoCount + 1 } : current);
+                    uploadedPhotos.push(saved);
                     uploadedCount++;
                     nextInsertionPoint = { insertAfterPhotoId: saved.id };
                 } catch (cause) {
@@ -237,6 +346,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     clearPhotoUploadPreview();
                 }
             }
+            if (uploadedPhotos.length > 0) history.recordApplied({ kind: "add",
+                label: uploadedPhotos.length === 1 ? "Add photo" : `Add ${uploadedPhotos.length} photos`, photos: uploadedPhotos });
             const summary = `${uploadedCount} ${uploadedCount === 1 ? "photo uploaded" : "photos uploaded"}${gallery.purpose === 1 ? " to Unsorted" : ""}.`;
             if (failures.length > 0) {
                 setError(`${summary} ${failures.length} ${failures.length === 1 ? "file could" : "files could"} not be uploaded. ${failures.join(" ")}`);
@@ -252,7 +363,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     }
 
     async function saveDetails(formData: FormData) {
-        if (!gallery) return;
+        if (!gallery || history.isBusy) return;
         setError("");
         setNotice("");
         setSettingsFeedback(null);
@@ -277,6 +388,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 ...current,
                 ...saved,
             } : current);
+            if (saved.purpose !== gallery.purpose) clearHistory();
             setSettingsFeedback({
                 type: "success",
                 message: "Gallery changes saved.",
@@ -309,6 +421,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                 return copy;
             });
             setGallery((current) => current ? { ...current, photoCount: current.photoCount + 1 } : current);
+            history.recordApplied({ kind: "add", label: "Add video", photos: [saved] });
             setVideoInsertionPoint(null);
             setNotice("YouTube video added.");
         } finally {
@@ -384,7 +497,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     }
 
     async function changePublication() {
-        if (!gallery) return;
+        if (!gallery || history.isBusy) return;
         setError("");
         setNotice("");
         setIsPublishing(true);
@@ -407,40 +520,24 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
         }
     }
 
-    async function saveMoodboardLayout(photoId: string, layout: MoodboardLayout) {
-        if (!gallery) return;
-
-        const previousPhotos = photos;
+    async function saveMoodboardLayouts(updates: { photoId: string; layout: MoodboardLayout }[]) {
+        if (!gallery || history.isBusy || isUploading) return;
         const nextZIndex = Math.max(0, ...photos.map((photo) => photo.boardZIndex ?? 0)) + 1;
-
-        setPhotos((current) => current.map((photo) => photo.id === photoId ? {
-            ...photo,
-            boardX: layout.x,
-            boardY: layout.y,
-            boardWidth: layout.width,
-            captionHeight: layout.captionHeight,
-            boardZIndex: nextZIndex,
-        } : photo));
-        setError("");
-
-        try {
-            const saved = await apiRequest<Photo>(
-                `/api/galleries/${gallery.id}/photos/${photoId}/board-position`,
-                {
-                    method: "PATCH",
-                    body: JSON.stringify({
-                        boardX: layout.x,
-                        boardY: layout.y,
-                        boardWidth: layout.width,
-                        captionHeight: layout.captionHeight,
-                    } satisfies UpdatePhotoBoardPositionRequest),
-                },
-            );
-            setPhotos((current) => current.map((photo) => photo.id === photoId ? saved : photo));
-        } catch (cause) {
-            setPhotos(previousPhotos);
-            setError(errorMessage(cause, "Could not save the image position."));
+        const before: PhotoBoardState[] = [], after: PhotoBoardState[] = [];
+        for (const { photoId, layout } of updates) {
+            const photo = photos.find((item) => item.id === photoId);
+            if (!photo) return;
+            if (photo.boardX === layout.x && photo.boardY === layout.y && (photo.boardWidth ?? MOODBOARD_CARD_WIDTH) === layout.width &&
+                (photo.captionHeight ?? MOODBOARD_CAPTION_HEIGHT) === layout.captionHeight) continue;
+            before.push(boardState(photo));
+            after.push({ photoId, boardX: layout.x, boardY: layout.y, boardWidth: layout.width,
+                captionHeight: layout.captionHeight, boardZIndex: nextZIndex + after.length });
         }
+        if (after.length > 0) await history.commit({ kind: "layout", label: after.length > 1 ? "Move selected photos" : "Move or resize photo", before, after });
+    }
+
+    async function saveMoodboardLayout(photoId: string, layout: MoodboardLayout) {
+        await saveMoodboardLayouts([{ photoId, layout }]);
     }
 
     function updateCaption(photo: Photo, caption: string) {
@@ -456,36 +553,9 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
     }
 
     async function deletePhoto(photo: Photo) {
-        if (!gallery || deletingPhotoId) return;
-
-        const previousPhotos = photos;
-        const previousDrafts = captionDrafts;
-        setDeletingPhotoId(photo.id);
-        setError("");
-        setNotice("");
-        setPhotos((current) => current.filter((candidate) => candidate.id !== photo.id));
-        setCaptionDrafts((current) => {
-            const remaining = { ...current };
-            delete remaining[photo.id];
-            return remaining;
-        });
-
-        try {
-            await apiRequest<void>(`/api/galleries/${gallery.id}/photos/${photo.id}`, {
-                method: "DELETE",
-            });
-            setGallery((current) => current ? {
-                ...current,
-                photoCount: Math.max(0, current.photoCount - 1),
-            } : current);
-            setNotice(photo.youtubeVideoId ? "Video deleted." : "Photo deleted.");
-        } catch (cause) {
-            setPhotos(previousPhotos);
-            setCaptionDrafts(previousDrafts);
-            setError(errorMessage(cause, "Could not delete the gallery item."));
-        } finally {
-            setDeletingPhotoId(null);
-        }
+        if (!gallery || history.isBusy || isUploading) return;
+        await history.commit({ kind: "delete", label: photo.youtubeVideoId ? "Delete video" : "Delete photo", photo,
+            captionDraft: captionDrafts[photo.id] });
     }
 
     async function copyPublicLink() {
@@ -529,10 +599,18 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     <p className="text-sm font-medium text-blue-700">Gallery editor</p>
                     <h1 className="text-2xl font-bold sm:text-3xl">{gallery.title}</h1>
                 </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button type="button" onClick={() => { void history.undo(); }} disabled={!history.undoLabel || isUploading || isAddingVideo || isSaving} aria-disabled={history.isBusy || undefined} title={history.undoLabel ? `Undo: ${history.undoLabel} (⌘/Ctrl+Z)` : "Nothing to undo"} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm disabled:opacity-40">Undo</button>
+                    <button type="button" onClick={() => { void history.redo(); }} disabled={!history.redoLabel || isUploading || isAddingVideo || isSaving} aria-disabled={history.isBusy || undefined} title={history.redoLabel ? `Redo: ${history.redoLabel} (⌘/Ctrl+Shift+Z)` : "Nothing to redo"} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm disabled:opacity-40">Redo</button>
                 <button type="button" onClick={finishEditing} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Done</button>
+                </div>
             </header>
 
-            {(error || notice) && <p role={error ? "alert" : "status"} className={`mx-auto mb-5 w-full max-w-none rounded-lg border p-4 text-sm ${error ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-800"}`}>{error || notice}</p>}
+            <p className="mb-4 text-xs text-slate-500">Undo: ⌘/Ctrl+Z · Redo: ⌘/Ctrl+Shift+Z or Ctrl+Y · History is kept while this editor is open.</p>
+            {/* Keep save feedback from shifting the workspace after a move or undo. */}
+            <div className="mb-5 min-h-14 w-full">
+                {(error || notice) && <p role={error ? "alert" : "status"} className={`mx-auto w-full max-w-none rounded-lg border p-4 text-sm ${error ? "border-red-200 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-800"}`}>{error || notice}</p>}
+            </div>
 
             {uploadStatus && <p role="status" className="mx-auto mb-4 w-full text-sm text-slate-600">{uploadStatus}</p>}
 
@@ -541,6 +619,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     photos={photos.filter((photo) => photo.boardX === null || photo.boardY === null)}
                     uploadPreview={photoUploadPreview}
                     isUploading={isUploading}
+                    interactionLocked={history.isBusy}
                     deletingPhotoId={deletingPhotoId}
                     onUpload={() => openFilePicker()}
                     onPlace={(photoId, position) => { void saveMoodboardLayout(photoId, position); }}
@@ -551,6 +630,8 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     <MoodboardBoard
                         photos={photos}
                         editable
+                        interactionDisabled={history.isBusy || isUploading}
+                        onLayoutsChange={(updates) => { void saveMoodboardLayouts(updates); }}
                         captionDrafts={captionDrafts}
                         onLayoutChange={(photoId, layout) => { void saveMoodboardLayout(photoId, layout); }}
                         onUnsortedDrop={(photoId, layout) => { void saveMoodboardLayout(photoId, layout); }}
@@ -559,7 +640,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                     />
                 ) : (
                     <section aria-label="Portfolio media" className="overflow-hidden rounded-lg bg-white shadow-sm">
-                        <InsertPhotoButton label={photos.length === 0 ? "Add your first photos" : "Add photos at the top"} isUploading={isUploading || isAddingVideo} onEmbed={() => setVideoInsertionPoint({ insertAtStart: true })} onClick={() => openFilePicker({ insertAtStart: true })} />
+                        <InsertPhotoButton label={photos.length === 0 ? "Add your first photos" : "Add photos at the top"} isUploading={isUploading || isAddingVideo} interactionLocked={history.isBusy} onEmbed={() => setVideoInsertionPoint({ insertAtStart: true })} onClick={() => openFilePicker({ insertAtStart: true })} />
                         {photoUploadPreview?.insertionPoint && "insertAtStart" in photoUploadPreview.insertionPoint && <UploadProgressPreview imageUrl={photoUploadPreview.imageUrl} progress={photoUploadPreview.progress} alt="Uploading gallery photo" className="w-full" imageClassName="h-auto" />}
                         {photos.map((photo) => (<Fragment key={photo.id}>
                             <div key={photo.id}>
@@ -570,7 +651,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                                     )}
                                     <button
                                         type="button"
-                                        disabled={deletingPhotoId !== null}
+                                        disabled={deletingPhotoId !== null} aria-disabled={history.isBusy || undefined}
                                         aria-label={`Delete ${photo.caption || (photo.youtubeVideoId ? "portfolio video" : "portfolio image")}`}
                                         title={photo.youtubeVideoId ? "Delete video" : "Delete photo"}
                                         onClick={() => { void deletePhoto(photo); }}
@@ -583,7 +664,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                                             <label className="block text-xs font-medium text-slate-500" htmlFor={`photo-caption-${photo.id}`}>Caption</label>
                                             <button
                                                 type="button"
-                                                disabled={deletingPhotoId !== null}
+                                                disabled={deletingPhotoId !== null} aria-disabled={history.isBusy || undefined}
                                                 onClick={() => { void deletePhoto(photo); }}
                                                 className="text-xs font-medium text-slate-500 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
@@ -601,7 +682,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                                         />
                                     </figcaption>
                                 </figure>
-                                <InsertPhotoButton label="Upload photos here" isUploading={isUploading || isAddingVideo} onEmbed={() => setVideoInsertionPoint({ insertAfterPhotoId: photo.id })} onClick={() => openFilePicker({ insertAfterPhotoId: photo.id })} />
+                                <InsertPhotoButton label="Upload photos here" isUploading={isUploading || isAddingVideo} interactionLocked={history.isBusy} onEmbed={() => setVideoInsertionPoint({ insertAfterPhotoId: photo.id })} onClick={() => openFilePicker({ insertAfterPhotoId: photo.id })} />
                             </div>
                             {photoUploadPreview?.insertionPoint && "insertAfterPhotoId" in photoUploadPreview.insertionPoint && photoUploadPreview.insertionPoint.insertAfterPhotoId === photo.id && <UploadProgressPreview imageUrl={photoUploadPreview.imageUrl} progress={photoUploadPreview.progress} alt="Uploading gallery photo" className="w-full" imageClassName="h-auto" />}
                         </Fragment>))}
@@ -635,7 +716,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                             <button type="button" onClick={() => void saveCaptions()} disabled={isSavingCaptions} className="mt-2 text-sm font-medium text-blue-600 disabled:text-slate-400">{isSavingCaptions ? "Saving captions…" : "Save photo captions"}</button>
                         </div>}
                         <p className="mt-5 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500">Save gallery details to apply changes to the title, description, and gallery type.</p>
-                        <button type="submit" disabled={isSaving || isUpdatingCollaboration || isAddingVideo || isUploading} className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving gallery details…" : "Save gallery details"}</button>
+                        <button type="submit" disabled={isSaving || isUpdatingCollaboration || isAddingVideo || isUploading} aria-disabled={history.isBusy || undefined} className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-blue-300">{isSaving ? "Saving gallery details…" : "Save gallery details"}</button>
                     </form>
 
                     <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -689,7 +770,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                                 {copyFeedback.message}
                             </p>}
                         </>}
-                        <button type="button" disabled={isPublishing || (!gallery.isPublished && photos.length === 0)} onClick={changePublication} className="mt-4 w-full rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">{isPublishing ? "Updating…" : gallery.isPublished ? "Unpublish gallery" : "Publish gallery"}</button>
+                        <button type="button" aria-disabled={history.isBusy || undefined} disabled={isPublishing || (!gallery.isPublished && photos.length === 0)} onClick={changePublication} className="mt-4 w-full rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">{isPublishing ? "Updating…" : gallery.isPublished ? "Unpublish gallery" : "Publish gallery"}</button>
                     </section>
 
                     <section className="mt-5 rounded-lg border border-red-200 bg-red-50 p-5 shadow-sm">
@@ -700,6 +781,7 @@ export function GalleryEditor({ galleryId }: { galleryId: string }) {
                             type="button"
                             onClick={() => { void deleteGallery(); }}
                             disabled={isDeletingGallery}
+                            aria-disabled={history.isBusy || undefined}
                             className="mt-4 w-full rounded-md bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
                         >
                             {isDeletingGallery ? "Deleting…" : `Delete ${gallery.purpose === 1 ? "moodboard" : "portfolio"}`}
@@ -1092,12 +1174,12 @@ function ThumbnailSettings({
     </>;
 }
 
-function InsertPhotoButton({ label, isUploading, onClick, onEmbed }: { label: string; isUploading: boolean; onClick: () => void; onEmbed: () => void }) {
+function InsertPhotoButton({ label, isUploading, interactionLocked = false, onClick, onEmbed }: { label: string; isUploading: boolean; interactionLocked?: boolean; onClick: () => void; onEmbed: () => void }) {
     const buttonClass = "rounded-md border border-dashed border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60";
     return <div className="group relative flex min-h-8 items-center justify-center bg-slate-50 py-1.5">
         <div className="flex flex-wrap justify-center gap-2 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
-            <button type="button" disabled={isUploading} onClick={onClick} className={buttonClass}>{isUploading ? "Saving…" : `＋ ${label}`}</button>
-            <button type="button" disabled={isUploading} onClick={onEmbed} className={buttonClass}>＋ Add embed video</button>
+            <button type="button" disabled={isUploading} aria-disabled={interactionLocked || undefined} onClick={() => { if (!interactionLocked) onClick(); }} className={buttonClass}>{isUploading ? "Saving…" : `＋ ${label}`}</button>
+            <button type="button" disabled={isUploading} aria-disabled={interactionLocked || undefined} onClick={() => { if (!interactionLocked) onEmbed(); }} className={buttonClass}>＋ Add embed video</button>
         </div>
     </div>;
 }
@@ -1140,6 +1222,7 @@ function UnsortedTray({
     photos,
     uploadPreview,
     isUploading,
+    interactionLocked = false,
     deletingPhotoId,
     onUpload,
     onPlace,
@@ -1148,6 +1231,7 @@ function UnsortedTray({
     photos: Photo[];
     uploadPreview: PhotoUploadPreview | null;
     isUploading: boolean;
+    interactionLocked?: boolean;
     deletingPhotoId: string | null;
     onUpload: () => void;
     onPlace: (photoId: string, layout: MoodboardLayout) => void;
@@ -1162,7 +1246,7 @@ function UnsortedTray({
                 </div>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{photos.length + (uploadPreview ? 1 : 0)}</span>
             </div>
-            <button type="button" disabled={isUploading} onClick={onUpload} className="mt-4 w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400">
+            <button type="button" disabled={isUploading} aria-disabled={interactionLocked || undefined} onClick={() => { if (!interactionLocked) onUpload(); }} className="mt-4 w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400">
                 {isUploading ? "Uploading…" : "＋ Upload images"}
             </button>
             {photos.length === 0 && !uploadPreview ? (
@@ -1188,7 +1272,8 @@ function UnsortedTray({
                                     <button
                                         type="button"
                                         disabled={deletingPhotoId !== null}
-                                        onClick={() => onDelete(photo)}
+                                        aria-disabled={interactionLocked || undefined}
+                                        onClick={() => { if (!interactionLocked) onDelete(photo); }}
                                         className="text-xs font-medium text-slate-500 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {deletingPhotoId === photo.id ? "Deleting…" : "Delete"}
@@ -1196,12 +1281,13 @@ function UnsortedTray({
                                     <button
                                         type="button"
                                         disabled={deletingPhotoId !== null}
-                                        onClick={() => onPlace(photo.id, {
+                                        aria-disabled={interactionLocked || undefined}
+                                        onClick={() => { if (!interactionLocked) onPlace(photo.id, {
                                             x: 120 + (index % 5) * (MOODBOARD_CARD_WIDTH + 30),
                                             y: 120 + Math.floor(index / 5) * 280,
                                             width: MOODBOARD_CARD_WIDTH,
                                             captionHeight: MOODBOARD_CAPTION_HEIGHT,
-                                        })}
+                                        }); }}
                                         className="text-xs font-medium text-blue-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         Place
